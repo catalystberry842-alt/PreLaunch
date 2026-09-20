@@ -6,7 +6,7 @@ PreLaunch is a **read-only** research and portfolio tool for [PreStocks](https:/
 
 **Repo:** https://github.com/catalystberry842-alt/PreLaunch
 
-**Demo:** _[add your deployed URL here]_
+**Demo:** https://prelauched.grok.me/
 
 ---
 
