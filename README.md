@@ -4,7 +4,9 @@ Track PreStocks, discover strategies, build baskets, and simulate ideas.
 
 PreLaunch is a **read-only** research and portfolio tool for [PreStocks](https://prestocks.com) — tokenized economic exposure to private companies. It is not a broker, token launchpad, or trading venue.
 
-**Repo:** [github.com/catalystberry842-alt/PreLaunch](https://github.com/catalystberry842-alt/PreLaunch)
+**Repo:** https://github.com/catalystberry842-alt/PreLaunch
+
+**Demo:** _[add your deployed URL here]_
 
 ---
 
@@ -96,6 +98,8 @@ cp .env.example .env.local   # optional
 npm run dev
 ```
 
+App: `http://localhost:8080`
+
 ```bash
 npm run typecheck
 npm run lint
@@ -106,7 +110,7 @@ npm run build
 ## Environment variables
 
 | Variable | Required | Where | Purpose |
-| --- | --- | --- |
+| --- | --- | --- | --- |
 | `HELIUS_API_KEY` | No | Server only (`.env.local`) | Richer wallet + transaction history |
 
 Never expose this key in the client. Do **not** prefix it with `VITE_` or `NEXT_PUBLIC_`.

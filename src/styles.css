@@ -1,0 +1,337 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Hover only on real pointers — iOS otherwise treats first tap as hover. */
+@custom-variant hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+
+  --color-background: #09090b;
+  --color-foreground: #f4f4f0;
+  --color-card: #121214;
+  --color-card-foreground: #f4f4f0;
+  --color-popover: #17171a;
+  --color-popover-foreground: #f4f4f0;
+  --color-primary: #f4f4f0;
+  --color-primary-foreground: #09090b;
+  --color-secondary: #1a1a1e;
+  --color-secondary-foreground: #f4f4f0;
+  --color-muted: #1a1a1e;
+  --color-muted-foreground: #9c9c96;
+  --color-accent: #1e1e22;
+  --color-accent-foreground: #f4f4f0;
+  --color-destructive: #b56b6b;
+  --color-border: #f4f4f014;
+  --color-input: #f4f4f01f;
+  --color-ring: #d7d4cc;
+  --color-up: #7d9a7a;
+  --color-down: #b56b6b;
+  --color-surface: #121214;
+  --color-surface-raised: #1a1a1e;
+
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+
+  --shadow-border: 0 0 0 1px #f4f4f014;
+  --shadow-border-hover: 0 0 0 1px #f4f4f028;
+  --shadow-elevated: 0 0 0 1px #f4f4f014, 0 18px 40px -24px #000000b3;
+
+  --body-glow: #16161b;
+  --selection: #f4f4f029;
+  --theme-color: #09090b;
+
+  --alloc-1: #f4f4f0;
+  --alloc-2: #c8c5bc;
+  --alloc-3: #9a978f;
+  --alloc-4: #6e6c66;
+  --alloc-5: #d7d4cc;
+  --alloc-6: #8a8880;
+  --alloc-7: #b8b5ad;
+  --alloc-8: #52514c;
+
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+html.light {
+  --color-background: #f6f5f1;
+  --color-foreground: #161614;
+  --color-card: #ffffff;
+  --color-card-foreground: #161614;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #161614;
+  --color-primary: #161614;
+  --color-primary-foreground: #f6f5f1;
+  --color-secondary: #eceae4;
+  --color-secondary-foreground: #161614;
+  --color-muted: #eceae4;
+  --color-muted-foreground: #5f5e59;
+  --color-accent: #e7e5df;
+  --color-accent-foreground: #161614;
+  --color-destructive: #9a4040;
+  --color-border: #16161418;
+  --color-input: #16161422;
+  --color-ring: #3d3c38;
+  --color-up: #3d6b46;
+  --color-down: #9a4040;
+  --color-surface: #ffffff;
+  --color-surface-raised: #eceae4;
+  --shadow-border:
+    0 0 0 1px rgb(22 22 20 / 0.07),
+    0 1px 2px -1px rgb(22 22 20 / 0.06),
+    0 2px 4px 0 rgb(22 22 20 / 0.04);
+  --shadow-border-hover:
+    0 0 0 1px rgb(22 22 20 / 0.11),
+    0 1px 2px -1px rgb(22 22 20 / 0.08),
+    0 2px 4px 0 rgb(22 22 20 / 0.06);
+  --shadow-elevated:
+    0 0 0 1px rgb(22 22 20 / 0.08),
+    0 18px 40px -24px rgb(22 22 20 / 0.28);
+  --body-glow: #eceae4;
+  --selection: #1616141f;
+  --theme-color: #f6f5f1;
+  --alloc-1: #1c1c19;
+  --alloc-2: #4a4842;
+  --alloc-3: #6e6c66;
+  --alloc-4: #8a8880;
+  --alloc-5: #3d3c38;
+  --alloc-6: #5c5a54;
+  --alloc-7: #7a786f;
+  --alloc-8: #2a2926;
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    color-scheme: dark;
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: contain;
+    scroll-padding-top: calc(3.75rem + env(safe-area-inset-top, 0px));
+  }
+
+  body {
+    background:
+      radial-gradient(80rem 28rem at 50% -12%, var(--body-glow) 0%, transparent 62%),
+      var(--color-background);
+    min-height: 100%;
+    min-height: 100svh;
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    letter-spacing: -0.011em;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: visible;
+    overflow-y: visible;
+    overflow-anchor: none;
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: contain;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  a {
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input:not([type="range"]),
+  select,
+  textarea,
+  label,
+  summary {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    height: 1.25rem;
+    touch-action: pan-y;
+  }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--color-secondary);
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: -0.375rem;
+    border-radius: 999px;
+    background: var(--color-primary);
+    border: 0;
+  }
+
+  input[type="range"]::-moz-range-track {
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--color-secondary);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--color-primary);
+  }
+
+  ::selection {
+    color: var(--color-foreground);
+    background: var(--selection);
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.034em;
+}
+
+/* One small-type scale. Color is baked in so kickers/meta/body never drift. */
+@utility type-kicker {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+@utility type-meta {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: var(--color-muted-foreground);
+}
+
+@utility type-body {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  font-weight: 400;
+  letter-spacing: -0.006em;
+  color: var(--color-muted-foreground);
+}
+
+@utility type-copy {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  font-weight: 400;
+  letter-spacing: -0.006em;
+  color: color-mix(in srgb, var(--color-foreground) 90%, transparent);
+}
+
+@utility type-card {
+  font-size: 0.875rem;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-foreground);
+}
+
+@utility type-lede {
+  font-size: 1rem;
+  line-height: 1.6;
+  font-weight: 400;
+  letter-spacing: -0.011em;
+  color: var(--color-muted-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.hairline-shadow {
+  box-shadow: var(--shadow-border);
+}
+
+.hairline-shadow-hover:hover {
+  box-shadow: var(--shadow-border-hover);
+}
+
+.hide-scrollbar {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: contain;
+  touch-action: pan-x pan-y;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+html.is-scrolling a,
+html.is-scrolling button,
+html.is-scrolling [role="button"] {
+  pointer-events: none;
+}
