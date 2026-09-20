@@ -363,7 +363,7 @@ describe("parsePreStockTransactions", () => {
     assert.equal(parsed[0].valueUsd, 140);
   });
 
-  it("does not invent a price for a SOL-only swap", () => {
+  it("does not treat a SOL-only swap as a priced buy", () => {
     const parsed = parsePreStockTransactions(
       [
         {
@@ -390,7 +390,7 @@ describe("parsePreStockTransactions", () => {
       wallet,
       [stock],
     );
-    assert.equal(parsed[0].type, "buy");
+    assert.equal(parsed[0].type, "transfer_in");
     assert.equal(parsed[0].valueUsd, null);
     assert.equal(parsed[0].costBasisEligible, false);
   });

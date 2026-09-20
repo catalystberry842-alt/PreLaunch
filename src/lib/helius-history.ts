@@ -54,6 +54,8 @@ function isoFromUnix(value: unknown) {
 function typeLabel(type: PortfolioTxType, _eligible: boolean): string {
   if (type === "buy") return "Buy / Acquisition";
   if (type === "sell") return "Sell / Disposal";
+  if (type === "transfer_in") return "Transfer in";
+  if (type === "transfer_out") return "Transfer out";
   return "Transfer";
 }
 
@@ -173,12 +175,12 @@ export function parsePreStockTransactions(
       let type: PortfolioTxType;
       let valueUsd: number | null = null;
 
-      if (isSwap && inbound) {
+      if (isSwap && inbound && canAllocateUsd && usdFlow < -QTY_EPS) {
         type = "buy";
-        if (canAllocateUsd && usdFlow < -QTY_EPS) valueUsd = round2(-usdFlow);
-      } else if (isSwap && !inbound) {
+        valueUsd = round2(-usdFlow);
+      } else if (isSwap && !inbound && canAllocateUsd && usdFlow > QTY_EPS) {
         type = "sell";
-        if (canAllocateUsd && usdFlow > QTY_EPS) valueUsd = round2(usdFlow);
+        valueUsd = round2(usdFlow);
       } else if (inbound) {
         type = "transfer_in";
       } else {

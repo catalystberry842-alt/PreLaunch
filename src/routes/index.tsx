@@ -18,13 +18,13 @@ export const Route = createFileRoute("/")({
 const STEPS = [
   {
     n: "01",
-    title: "Discover",
-    body: "Explore PreStocks and community-created baskets",
+    title: "Track",
+    body: "Paste a Solana address to see PreStocks holdings and supported P&L",
   },
   {
     n: "02",
     title: "Research",
-    body: "Understand the companies inside each basket",
+    body: "Read live catalog data for each PreStock",
   },
   {
     n: "03",
@@ -58,23 +58,53 @@ function Hero() {
             </p>
           </div>
           <h1 className="mt-6 max-w-xl font-display text-4xl leading-tight sm:text-5xl lg:text-6xl">
-            Build the next portfolio before the next IPO
+            Track your PreStocks and build a strategy.
           </h1>
-          <p className="mt-5 max-w-md type-lede">
-            Create, discover, research and simulate curated baskets built from
-            PreStocks.
+          <p className="mt-5 max-w-lg type-lede">
+            PreLaunch gives you one place to track your PreStocks portfolio,
+            research private-market exposure, build curated baskets, and
+            simulate what-if scenarios.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button asChild size="lg">
-              <Link to="/discover">Explore Baskets</Link>
+              <Link to="/portfolio">Track Portfolio</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to="/create">
-                Create a Basket
+              <Link to="/discover">
+                Explore PreStocks
                 <ArrowRight />
               </Link>
             </Button>
           </div>
+          <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 type-meta">
+            <Link
+              to="/portfolio"
+              className="inline-flex min-h-11 items-center text-foreground/80 hover:text-foreground"
+            >
+              Track Portfolio
+            </Link>
+            <Link
+              to="/discover"
+              search={{ tab: "prestocks" }}
+              className="inline-flex min-h-11 items-center text-foreground/80 hover:text-foreground"
+            >
+              Research PreStocks
+            </Link>
+            <Link
+              to="/create"
+              className="inline-flex min-h-11 items-center text-foreground/80 hover:text-foreground"
+            >
+              Build Baskets
+            </Link>
+            <Link
+              to="/basket/$id"
+              params={{ id: "ai-infrastructure" }}
+              hash="simulator"
+              className="inline-flex min-h-11 items-center text-foreground/80 hover:text-foreground"
+            >
+              Simulate Strategies
+            </Link>
+          </p>
         </div>
         {featured ? (
           <Card className="p-6">
@@ -130,7 +160,7 @@ function HowItWorks() {
           How it works
         </p>
         <h2 className="mt-3 font-display text-3xl sm:text-4xl">
-          Discover, research, launch
+          Track, research, build
         </h2>
         <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {STEPS.map((step) => (
@@ -153,6 +183,56 @@ function HowItWorks() {
   );
 }
 
+function Capabilities() {
+  return (
+    <section className="border-b border-border">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <p className="type-kicker">Product</p>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Link
+            to="/portfolio"
+            className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-border)] touch-manipulation hover:shadow-[var(--shadow-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+          >
+            <h2 className="font-display text-base">Track Portfolio</h2>
+            <p className="mt-2 type-body">
+              Track holdings, value, and supported cost basis.
+            </p>
+          </Link>
+          <Link
+            to="/discover"
+            className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-border)] touch-manipulation hover:shadow-[var(--shadow-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+          >
+            <h2 className="font-display text-base">Research PreStocks</h2>
+            <p className="mt-2 type-body">
+              Live PreStocks catalog data, not estimates.
+            </p>
+          </Link>
+          <Link
+            to="/create"
+            className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-border)] touch-manipulation hover:shadow-[var(--shadow-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+          >
+            <h2 className="font-display text-base">Build Baskets</h2>
+            <p className="mt-2 type-body">
+              Build and publish a strategy in this browser.
+            </p>
+          </Link>
+          <Link
+            to="/basket/$id"
+            params={{ id: "ai-infrastructure" }}
+            hash="simulator"
+            className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-border)] touch-manipulation hover:shadow-[var(--shadow-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+          >
+            <h2 className="font-display text-base">Simulate Strategies</h2>
+            <p className="mt-2 type-body">
+              Hypothetical what-ifs. Not a forecast.
+            </p>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Home() {
   useCatalog();
   const featured = baskets.getFeatured();
@@ -160,6 +240,7 @@ function Home() {
   return (
     <>
       <Hero />
+      <Capabilities />
       <section className="border-b border-border">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-4">

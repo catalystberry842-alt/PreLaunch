@@ -160,7 +160,7 @@ export const baskets = {
         errors.push(`Allocation total: ${total}%. ${remaining}% remaining`);
       }
     }
-    if (!draft.thesis.trim()) errors.push("Add a thesis before launching");
+    if (!draft.thesis.trim()) errors.push("Add a thesis before publishing");
     return errors;
   },
   publish(draft: BasketDraft) {

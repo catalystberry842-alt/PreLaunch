@@ -11,10 +11,10 @@ export function SiteFooter() {
             <p className="font-display text-base">PreLaunch</p>
           </div>
           <p className="mt-6 type-meta leading-relaxed">
-            PreLaunch publishes curated PreStock baskets in your browser. It is
-            not a token launch, brokerage, or offer of securities. PreStocks are
-            economic exposure, not ownership of the companies they reference.
-            Nothing here is financial advice.
+            PreLaunch is a read-only PreStocks portfolio and strategy platform.
+            It is not a token launch, brokerage, trading venue, or offer of
+            securities. PreStocks are economic exposure, not ownership of the
+            companies they reference. Nothing here is financial advice.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-6 text-sm">
@@ -44,7 +44,7 @@ export function SiteFooter() {
               to="/create"
               className="inline-flex min-h-11 items-center text-foreground/90 touch-manipulation hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 rounded-md"
             >
-              Create
+              Create Basket
             </Link>
             <Link
               to="/saved"

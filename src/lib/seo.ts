@@ -1,6 +1,6 @@
-export const SITE_TITLE = "PreLaunch — Curated PreStock Baskets";
+export const SITE_TITLE = "PreLaunch — Track PreStocks and build a strategy.";
 export const SITE_DESCRIPTION =
-  "Create, discover, research and simulate curated baskets built from PreStocks.";
+  "PreLaunch gives you one place to track your PreStocks portfolio, research private-market exposure, build curated baskets, and simulate what-if scenarios.";
 
 export function pageHead(title?: string, description = SITE_DESCRIPTION) {
   return {

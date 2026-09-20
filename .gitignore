@@ -7,3 +7,7 @@ node_modules
 .vinxi
 .tanstack
 dist
+
+.vercel
+screenshots
+artifacts

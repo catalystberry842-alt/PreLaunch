@@ -4,9 +4,7 @@ Track PreStocks, discover strategies, build baskets, and simulate ideas.
 
 PreLaunch is a **read-only** research and portfolio tool for [PreStocks](https://prestocks.com) — tokenized economic exposure to private companies. It is not a broker, token launchpad, or trading venue.
 
-**Repo:** https://github.com/catalystberry842-alt/PreLaunch
-
-**Demo:** https://prelauched.grok.me/
+**Demo:** _[add your deployed URL here]_
 
 ---
 
