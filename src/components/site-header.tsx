@@ -114,13 +114,6 @@ export function SiteHeader() {
                 <p className="type-kicker">Appearance</p>
                 <ThemeToggle className="mt-3 w-full" />
               </div>
-              <a
-                href="/PreLaunch.zip"
-                download="PreLaunch.zip"
-                className="mt-6 inline-flex min-h-12 items-center rounded-lg bg-primary px-3 text-base font-medium text-primary-foreground touch-manipulation"
-              >
-                Download project zip
-              </a>
             </SheetContent>
           </Sheet>
         </div>

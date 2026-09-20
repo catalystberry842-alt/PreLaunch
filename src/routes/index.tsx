@@ -75,13 +75,6 @@ function Hero() {
               </Link>
             </Button>
           </div>
-          <div className="mt-3">
-            <Button asChild size="lg" variant="outline">
-              <a href="/PreLaunch.zip" download="PreLaunch.zip">
-                Download project zip
-              </a>
-            </Button>
-          </div>
         </div>
         {featured ? (
           <Card className="p-6">
