@@ -15,6 +15,7 @@ import { Route as CreateRouteImport } from './routes/create'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as SavedRouteImport } from './routes/saved'
+import { Route as SimulatorRouteImport } from './routes/simulator'
 import { Route as BasketIdRouteImport } from './routes/basket.$id'
 import { Route as CreatorIdRouteImport } from './routes/creator.$id'
 import { Route as ResearchIdRouteImport } from './routes/research.$id'
@@ -50,6 +51,11 @@ const SavedRoute = SavedRouteImport.update({
   path: '/saved',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SimulatorRoute = SimulatorRouteImport.update({
+  id: '/simulator',
+  path: '/simulator',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BasketIdRoute = BasketIdRouteImport.update({
   id: '/basket/$id',
   path: '/basket/$id',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/discover': typeof DiscoverRoute
   '/portfolio': typeof PortfolioRoute
   '/saved': typeof SavedRoute
+  '/simulator': typeof SimulatorRoute
   '/basket/$id': typeof BasketIdRoute
   '/creator/$id': typeof CreatorIdRoute
   '/research/$id': typeof ResearchIdRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/discover': typeof DiscoverRoute
   '/portfolio': typeof PortfolioRoute
   '/saved': typeof SavedRoute
+  '/simulator': typeof SimulatorRoute
   '/basket/$id': typeof BasketIdRoute
   '/creator/$id': typeof CreatorIdRoute
   '/research/$id': typeof ResearchIdRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/discover': typeof DiscoverRoute
   '/portfolio': typeof PortfolioRoute
   '/saved': typeof SavedRoute
+  '/simulator': typeof SimulatorRoute
   '/basket/$id': typeof BasketIdRoute
   '/creator/$id': typeof CreatorIdRoute
   '/research/$id': typeof ResearchIdRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/portfolio'
     | '/saved'
+    | '/simulator'
     | '/basket/$id'
     | '/creator/$id'
     | '/research/$id'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/portfolio'
     | '/saved'
+    | '/simulator'
     | '/basket/$id'
     | '/creator/$id'
     | '/research/$id'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/portfolio'
     | '/saved'
+    | '/simulator'
     | '/basket/$id'
     | '/creator/$id'
     | '/research/$id'
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   DiscoverRoute: typeof DiscoverRoute
   PortfolioRoute: typeof PortfolioRoute
   SavedRoute: typeof SavedRoute
+  SimulatorRoute: typeof SimulatorRoute
   BasketIdRoute: typeof BasketIdRoute
   CreatorIdRoute: typeof CreatorIdRoute
   ResearchIdRoute: typeof ResearchIdRoute
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SavedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/simulator': {
+      id: '/simulator'
+      path: '/simulator'
+      fullPath: '/simulator'
+      preLoaderRoute: typeof SimulatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/basket/$id': {
       id: '/basket/$id'
       path: '/basket/$id'
@@ -242,6 +262,7 @@ const rootRouteChildren: RootRouteChildren = {
   DiscoverRoute: DiscoverRoute,
   PortfolioRoute: PortfolioRoute,
   SavedRoute: SavedRoute,
+  SimulatorRoute: SimulatorRoute,
   BasketIdRoute: BasketIdRoute,
   CreatorIdRoute: CreatorIdRoute,
   ResearchIdRoute: ResearchIdRoute,

@@ -67,7 +67,7 @@ function BasketPage() {
   const [basket, setBasket] = useState<Basket | undefined>(() =>
     baskets.getCatalog().find((item) => item.id === id),
   );
-  const [amount, setAmount] = useState(1000);
+  const [amount, setAmount] = useState(10000);
   const [scenario, setScenario] = useState(0);
 
   useEffect(() => {
@@ -126,13 +126,6 @@ function BasketPage() {
   const saved = ready && isSaved(basket.id);
   const related = relatedBaskets(baskets.getAll(), basket, 3);
 
-  function scrollTo(target: string) {
-    document.getElementById(target)?.scrollIntoView({
-      behavior: "auto",
-      block: "start",
-    });
-  }
-
   const largest = holdings.reduce<BasketHolding | null>(
     (current, item) =>
       !current || item.allocation > current.allocation ? item : current,
@@ -187,9 +180,16 @@ function BasketPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={() => scrollTo("simulator")}>
-                <FlaskConical />
-                Simulate
+              <Button asChild>
+                <Link to="/simulator" search={{ basket: basket.id }}>
+                  <FlaskConical />
+                  Simulate Basket
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/compare" search={{ basket: basket.id }}>
+                  Compare Portfolio
+                </Link>
               </Button>
               <Button
                 type="button"
@@ -314,6 +314,7 @@ function BasketPage() {
           scenario={scenario}
           onAmount={setAmount}
           onScenario={setScenario}
+          basketName={basket.name}
         />
 
         <section>

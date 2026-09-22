@@ -86,6 +86,36 @@ export function calculateConstituentImpact(
   };
 }
 
+export type HoldingsScenarioResult = {
+  rows: ConstituentImpact[];
+  scenarioValue: number;
+  sleeve: number;
+  pnl: number;
+  returnPercent: number;
+};
+
+/** Compose per-sleeve impacts from the existing average-cost-free what-if engine. */
+export function calculateHoldingsScenario(
+  amount: number,
+  items: { allocation: number; scenarioPercent: number }[],
+): HoldingsScenarioResult {
+  const total = items.reduce((sum, item) => sum + item.allocation, 0);
+  const rows = items.map((item) =>
+    calculateConstituentImpact(
+      amount,
+      item.allocation,
+      item.scenarioPercent,
+      total > 0 ? total : 100,
+    ),
+  );
+  const scenarioValue = round2(rows.reduce((sum, row) => sum + row.scenarioValue, 0));
+  const sleeve = round2(rows.reduce((sum, row) => sum + row.sleeve, 0));
+  const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
+  const pnl = round2(scenarioValue - safeAmount);
+  const returnPercent = safeAmount > 0 ? round1((pnl / safeAmount) * 100) : 0;
+  return { rows, scenarioValue, sleeve, pnl, returnPercent };
+}
+
 export function calculateAllocationStats(
   items: { allocation: number }[],
 ): AllocationStats {

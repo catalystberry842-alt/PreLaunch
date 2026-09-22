@@ -18,8 +18,8 @@ export const Route = createFileRoute("/")({
 const STEPS = [
   {
     n: "01",
-    title: "Track",
-    body: "Paste a Solana address to see PreStocks holdings and supported P&L",
+    title: "Discover",
+    body: "Browse PreStocks and published baskets",
   },
   {
     n: "02",
@@ -33,13 +33,13 @@ const STEPS = [
   },
   {
     n: "04",
-    title: "Publish",
-    body: "Save the basket in this browser on PreLaunch",
+    title: "Simulate",
+    body: "Test hypothetical outcomes without executing a trade",
   },
   {
     n: "05",
-    title: "Simulate",
-    body: "Apply hypothetical scenarios to a published basket",
+    title: "Compare",
+    body: "Compare your portfolio with a basket allocation",
   },
 ];
 
@@ -97,12 +97,16 @@ function Hero() {
               Build Baskets
             </Link>
             <Link
-              to="/basket/$id"
-              params={{ id: "ai-infrastructure" }}
-              hash="simulator"
+              to="/simulator"
               className="inline-flex min-h-11 items-center text-foreground/80 hover:text-foreground"
             >
               Simulate Strategies
+            </Link>
+            <Link
+              to="/compare"
+              className="inline-flex min-h-11 items-center text-foreground/80 hover:text-foreground"
+            >
+              Compare
             </Link>
           </p>
         </div>
@@ -160,7 +164,7 @@ function HowItWorks() {
           How it works
         </p>
         <h2 className="mt-3 font-display text-3xl sm:text-4xl">
-          Track, research, build
+          Discover, research, simulate
         </h2>
         <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {STEPS.map((step) => (
@@ -188,44 +192,42 @@ function Capabilities() {
     <section className="border-b border-border">
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <p className="type-kicker">Product</p>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <Link
+            to="/discover"
+            search={{ tab: "prestocks" }}
+            className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-border)] touch-manipulation hover:shadow-[var(--shadow-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+          >
+            <h2 className="font-display text-base">Research</h2>
+            <p className="mt-2 type-body">Understand individual PreStocks</p>
+          </Link>
           <Link
             to="/portfolio"
             className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-border)] touch-manipulation hover:shadow-[var(--shadow-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
           >
-            <h2 className="font-display text-base">Track Portfolio</h2>
-            <p className="mt-2 type-body">
-              Track holdings, value, and supported cost basis.
-            </p>
-          </Link>
-          <Link
-            to="/discover"
-            className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-border)] touch-manipulation hover:shadow-[var(--shadow-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
-          >
-            <h2 className="font-display text-base">Research PreStocks</h2>
-            <p className="mt-2 type-body">
-              Live PreStocks catalog data, not estimates.
-            </p>
+            <h2 className="font-display text-base">Portfolio</h2>
+            <p className="mt-2 type-body">Track your holdings and performance</p>
           </Link>
           <Link
             to="/create"
             className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-border)] touch-manipulation hover:shadow-[var(--shadow-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
           >
-            <h2 className="font-display text-base">Build Baskets</h2>
-            <p className="mt-2 type-body">
-              Build and publish a strategy in this browser.
-            </p>
+            <h2 className="font-display text-base">Baskets</h2>
+            <p className="mt-2 type-body">Build structured PreStock strategies</p>
           </Link>
           <Link
-            to="/basket/$id"
-            params={{ id: "ai-infrastructure" }}
-            hash="simulator"
+            to="/simulator"
             className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-border)] touch-manipulation hover:shadow-[var(--shadow-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
           >
-            <h2 className="font-display text-base">Simulate Strategies</h2>
-            <p className="mt-2 type-body">
-              Hypothetical what-ifs. Not a forecast.
-            </p>
+            <h2 className="font-display text-base">Simulation</h2>
+            <p className="mt-2 type-body">Test hypothetical scenarios</p>
+          </Link>
+          <Link
+            to="/compare"
+            className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-border)] touch-manipulation hover:shadow-[var(--shadow-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+          >
+            <h2 className="font-display text-base">Comparison</h2>
+            <p className="mt-2 type-body">Compare your portfolio with a strategy</p>
           </Link>
         </div>
       </div>

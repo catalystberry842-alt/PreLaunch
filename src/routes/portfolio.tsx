@@ -274,7 +274,7 @@ function PortfolioPage() {
 }
 
 function CompareWithBasket({ wallet }: { wallet: string }) {
-  const [list, setList] = useState<Basket[]>([]);
+  const [list, setList] = useState<Basket[]>(() => baskets.getCatalog());
   const [basketId, setBasketId] = useState("");
 
   useEffect(() => {
@@ -287,7 +287,7 @@ function CompareWithBasket({ wallet }: { wallet: string }) {
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-      <h2 className="type-card">Compare with a Basket</h2>
+      <h2 className="type-card">Compare Portfolio</h2>
       <p className="mt-1 type-meta">
         Informational view of this wallet against a PreLaunch basket’s
         reference allocation.
@@ -317,7 +317,12 @@ function CompareWithBasket({ wallet }: { wallet: string }) {
             to="/compare"
             search={{ wallet, basket: basketId }}
           >
-            Compare with a Basket
+            Compare Portfolio
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="sm:w-auto">
+          <Link to="/simulator" search={{ source: "portfolio", wallet }}>
+            Simulate Portfolio
           </Link>
         </Button>
       </div>

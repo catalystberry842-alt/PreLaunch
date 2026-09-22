@@ -44,7 +44,19 @@ export function SiteFooter() {
               to="/create"
               className="inline-flex min-h-11 items-center text-foreground/90 touch-manipulation hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 rounded-md"
             >
-              Create Basket
+              Create
+            </Link>
+            <Link
+              to="/simulator"
+              className="inline-flex min-h-11 items-center text-foreground/90 touch-manipulation hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 rounded-md"
+            >
+              Simulator
+            </Link>
+            <Link
+              to="/compare"
+              className="inline-flex min-h-11 items-center text-foreground/90 touch-manipulation hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 rounded-md"
+            >
+              Compare
             </Link>
             <Link
               to="/saved"

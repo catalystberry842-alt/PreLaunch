@@ -9,8 +9,9 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { to: "/discover" as const, label: "Discover" },
   { to: "/portfolio" as const, label: "Portfolio" },
-  { to: "/create" as const, label: "Create Basket" },
-  { to: "/saved" as const, label: "Saved" },
+  { to: "/create" as const, label: "Create" },
+  { to: "/simulator" as const, label: "Simulator" },
+  { to: "/compare" as const, label: "Compare" },
 ];
 
 function isActive(pathname: string, to: string) {
@@ -43,7 +44,7 @@ export function SiteHeader() {
           </span>
         </Link>
         <div className="flex min-w-0 items-center gap-1">
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
+          <nav className="hidden items-center gap-0.5 lg:flex" aria-label="Primary">
             {NAV.map((item) => {
               const active = isActive(pathname, item.to);
               return (
@@ -64,7 +65,7 @@ export function SiteHeader() {
               <Button
                 variant="outline"
                 size="icon"
-                className="md:hidden"
+                className="lg:hidden"
                 aria-label="Open menu"
               >
                 <Menu />
@@ -109,6 +110,20 @@ export function SiteHeader() {
                     </SheetClose>
                   );
                 })}
+                <SheetClose asChild>
+                  <Link
+                    to="/saved"
+                    aria-current={isActive(pathname, "/saved") ? "page" : undefined}
+                    className={cn(
+                      "flex min-h-12 items-center rounded-lg px-3 text-base font-medium touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70",
+                      isActive(pathname, "/saved")
+                        ? "bg-secondary text-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    Saved
+                  </Link>
+                </SheetClose>
               </nav>
               <div className="mt-8">
                 <p className="type-kicker">Appearance</p>

@@ -4,6 +4,7 @@ import {
   calculateAllocationStats,
   calculateBasketValue,
   calculateConstituentImpact,
+  calculateHoldingsScenario,
   calculateScenarioValue,
   clampScenario,
   parseScenarioInput,
@@ -90,24 +91,19 @@ describe("calculateConstituentImpact", () => {
   });
 
   it("matches the $10,000 mixed-sleeve hackathon case", () => {
-    const amount = 10000;
-    const openai = calculateConstituentImpact(amount, 30, 25);
-    const spacex = calculateConstituentImpact(amount, 30, -10);
-    const anthropic = calculateConstituentImpact(amount, 20, 15);
-    const xai = calculateConstituentImpact(amount, 20, 40);
-    const total =
-      openai.scenarioValue +
-      spacex.scenarioValue +
-      anthropic.scenarioValue +
-      xai.scenarioValue;
-    const pnl = total - amount;
-    assert.equal(openai.scenarioValue, 3750);
-    assert.equal(spacex.scenarioValue, 2700);
-    assert.equal(anthropic.scenarioValue, 2300);
-    assert.equal(xai.scenarioValue, 2800);
-    assert.equal(total, 11550);
-    assert.equal(pnl, 1550);
-    assert.equal(Math.round((pnl / amount) * 1000) / 10, 15.5);
+    const result = calculateHoldingsScenario(10000, [
+      { allocation: 30, scenarioPercent: 25 },
+      { allocation: 30, scenarioPercent: -10 },
+      { allocation: 20, scenarioPercent: 15 },
+      { allocation: 20, scenarioPercent: 40 },
+    ]);
+    assert.equal(result.rows[0].scenarioValue, 3750);
+    assert.equal(result.rows[1].scenarioValue, 2700);
+    assert.equal(result.rows[2].scenarioValue, 2300);
+    assert.equal(result.rows[3].scenarioValue, 2800);
+    assert.equal(result.scenarioValue, 11550);
+    assert.equal(result.pnl, 1550);
+    assert.equal(result.returnPercent, 15.5);
   });
 });
 

@@ -11,3 +11,6 @@ dist
 .vercel
 screenshots
 artifacts
+
+.node_modules.lock
+.project_id

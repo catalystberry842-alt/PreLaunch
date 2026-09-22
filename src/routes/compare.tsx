@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { FlaskConical } from "lucide-react";
 import { AllocationBar } from "@/components/allocation-bar";
 import { StockAvatar } from "@/components/stock-avatar";
-import { StrategySimulator } from "@/components/strategy-simulator";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -15,11 +15,8 @@ import {
 } from "@/components/ui/select";
 import { baskets } from "@/lib/baskets";
 import { useCatalog } from "@/lib/catalog";
-import {
-  comparePortfolioToBasket,
-  portfolioHoldingsFromSnapshot,
-} from "@/lib/compare";
-import { formatPrice, round1 } from "@/lib/format";
+import { comparePortfolioToBasket, type CompareRow, type CompareSide } from "@/lib/compare";
+import { round1, formatPrice } from "@/lib/format";
 import { getPortfolioFn } from "@/lib/portfolio.functions";
 import { cachePortfolioSnapshot, readCachedPortfolio } from "@/lib/portfolio-cache";
 import { pageHead } from "@/lib/seo";
@@ -59,17 +56,21 @@ function formatDelta(portfolioPercent: number, basketPercent: number) {
   return body;
 }
 
+function sideLabel(side: CompareSide) {
+  if (side === "both") return "Overlapping";
+  if (side === "portfolio") return "Only in portfolio";
+  return "Only in basket";
+}
+
 function ComparePage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const { stocks } = useCatalog();
-  const [list, setList] = useState<Basket[]>([]);
+  const [list, setList] = useState<Basket[]>(() => baskets.getCatalog());
   const [snapshot, setSnapshot] = useState<PortfolioSnapshot | null>(null);
   const [pending, setPending] = useState(false);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
-  const [amount, setAmount] = useState(1000);
-  const [scenario, setScenario] = useState(0);
-  const [amountReady, setAmountReady] = useState(false);
+  const [walletInput, setWalletInput] = useState(search.wallet ?? "");
 
   const wallet = search.wallet ?? "";
   const basketId = search.basket ?? "";
@@ -85,6 +86,10 @@ function ComparePage() {
     }
   }, [search.basket, search.wallet, navigate]);
 
+  useEffect(() => {
+    setWalletInput(wallet);
+  }, [wallet]);
+
   const basket = useMemo(
     () => (basketId ? baskets.getById(basketId) ?? list.find((item) => item.id === basketId) : undefined),
     [basketId, list],
@@ -99,7 +104,7 @@ function ComparePage() {
     }
     if (!isSolanaAddress(wallet)) {
       setSnapshot(null);
-      setPortfolioError("Portfolio data unavailable");
+      setPortfolioError("Enter a valid Solana wallet address");
       setPending(false);
       return;
     }
@@ -142,25 +147,27 @@ function ComparePage() {
     };
   }, [wallet]);
 
-  useEffect(() => {
-    if (!snapshot || amountReady) return;
-    if (snapshot.totalValue > 0) setAmount(Math.round(snapshot.totalValue));
-    setAmountReady(true);
-  }, [snapshot, amountReady]);
-
   const comparison =
     snapshot && basket
       ? comparePortfolioToBasket(snapshot, basket, stocks)
       : null;
-  const portfolioHoldings = snapshot
-    ? portfolioHoldingsFromSnapshot(snapshot, stocks)
-    : [];
+
+  function submitWallet(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const next = walletInput.trim();
+    void navigate({
+      search: {
+        wallet: next || undefined,
+        basket: basketId || undefined,
+      },
+    });
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
       <p className="type-kicker">Compare</p>
       <h1 className="mt-3 font-display text-4xl sm:text-5xl">
-        My Portfolio vs {basket?.name ?? "a basket"}
+        Your Portfolio vs {basket?.name ?? "a Basket"}
       </h1>
       <p className="mt-3 max-w-2xl type-lede">
         Informational comparison of live wallet holdings against a PreLaunch
@@ -190,9 +197,8 @@ function ComparePage() {
             </Link>
             <span aria-hidden="true">→</span>
             <Link
-              to="/basket/$id"
-              params={{ id: basket.id }}
-              hash="simulator"
+              to="/simulator"
+              search={{ basket: basket.id }}
               className="text-foreground/90 hover:text-foreground"
             >
               Simulator
@@ -201,37 +207,72 @@ function ComparePage() {
         ) : null}
       </nav>
 
-      <div className="mt-8 max-w-xl">
-        <Label htmlFor="compare-basket">Basket</Label>
-        <Select
-          value={basketId || undefined}
-          onValueChange={(value) => {
-            void navigate({
-              search: { wallet: wallet || undefined, basket: value },
-            });
-          }}
-        >
-          <SelectTrigger id="compare-basket" className="mt-2" aria-label="Select a basket">
-            <SelectValue placeholder="Select a PreLaunch basket" />
-          </SelectTrigger>
-          <SelectContent>
-            {list.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {item.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <form onSubmit={submitWallet}>
+          <Label htmlFor="compare-wallet">Your Portfolio</Label>
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+            <Input
+              id="compare-wallet"
+              value={walletInput}
+              onChange={(event) => setWalletInput(event.target.value)}
+              placeholder="Paste a Solana wallet address"
+              autoComplete="off"
+              spellCheck={false}
+              className="font-mono"
+            />
+            <Button type="submit" className="sm:w-auto sm:shrink-0">
+              Use wallet
+            </Button>
+          </div>
+          <p className="mt-2 type-meta">
+            Live PreStocks weights from this wallet. Not a trade.
+          </p>
+        </form>
+
+        <div>
+          <Label htmlFor="compare-basket">A Basket</Label>
+          <Select
+            value={basketId || undefined}
+            onValueChange={(value) => {
+              void navigate({
+                search: { wallet: wallet || undefined, basket: value },
+              });
+            }}
+          >
+            <SelectTrigger id="compare-basket" className="mt-2" aria-label="Select a basket">
+              <SelectValue placeholder="Select a PreLaunch basket" />
+            </SelectTrigger>
+            <SelectContent>
+              {list.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {basket ? (
+            <p className="mt-2 type-meta">
+              <Link
+                to="/basket/$id"
+                params={{ id: basket.id }}
+                className="text-foreground/90 hover:text-foreground"
+              >
+                Open {basket.name}
+              </Link>
+              {" · "}
+              {basket.constituents.length} PreStocks
+            </p>
+          ) : null}
+        </div>
       </div>
 
       {!wallet ? (
         <div className="mt-10 rounded-2xl border border-dashed border-border bg-card/40 px-6 py-12 text-center">
-          <p className="font-display text-2xl">Paste a wallet to compare</p>
+          <p className="font-display text-2xl">Enter a Solana wallet to compare your portfolio with a basket</p>
           <p className="mt-2 type-body">
-            Open Portfolio, look up a Solana address, then compare those
-            holdings with a basket.
+            Paste an address above, or look one up on Portfolio first.
           </p>
-          <Button asChild className="mt-4">
+          <Button asChild variant="outline" className="mt-4">
             <Link to="/portfolio">Go to Portfolio</Link>
           </Button>
         </div>
@@ -249,8 +290,7 @@ function ComparePage() {
 
       {wallet && !pending && portfolioError ? (
         <div className="mt-10 rounded-2xl border border-dashed border-border bg-card/40 px-6 py-12 text-center">
-          <p className="font-display text-2xl">Portfolio data unavailable</p>
-          <p className="mt-2 type-body">{portfolioError}</p>
+          <p className="font-display text-2xl">{portfolioError}</p>
           <div className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild variant="outline">
               <Link to="/portfolio" search={{ wallet }}>
@@ -281,7 +321,7 @@ function ComparePage() {
         <div className="mt-10 space-y-8">
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-              <p className="type-kicker">My portfolio</p>
+              <p className="type-kicker">Your Portfolio</p>
               <p className="mt-2 font-display text-3xl tabular-nums">
                 {formatPrice(comparison.portfolioValue)}
               </p>
@@ -306,7 +346,7 @@ function ComparePage() {
             </section>
 
             <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-              <p className="type-kicker">Selected basket</p>
+              <p className="type-kicker">A Basket</p>
               <p className="mt-2 font-display text-3xl">{basket.name}</p>
               <p className="mt-1 type-meta">
                 Reference allocation · {basket.constituents.length} PreStock
@@ -346,27 +386,28 @@ function ComparePage() {
           </section>
 
           <section>
-            <h2 className="type-card">Allocation differences</h2>
+            <h2 className="type-card">Allocation comparison</h2>
             <p className="mt-1 type-meta">
-              Matching PreStocks only. Difference is portfolio weight minus
-              basket reference weight.
+              Difference = portfolio allocation % − basket allocation %.
+              Informational only.
             </p>
-            {comparison.overlap.length === 0 ? (
+            {comparison.rows.length === 0 ? (
               <p className="mt-4 type-body">
-                No overlapping PreStocks between this wallet and {basket.name}.
+                No PreStocks in this wallet or basket to compare.
               </p>
             ) : (
               <>
                 <div className="mt-4 grid gap-4 md:hidden">
-                  {comparison.overlap.map((row) => (
+                  {comparison.rows.map((row) => (
                     <DifferenceCard key={row.id} row={row} />
                   ))}
                 </div>
                 <div className="mt-4 hidden overflow-x-auto rounded-2xl border border-border md:block">
-                  <table className="w-full min-w-[36rem] text-left">
+                  <table className="w-full min-w-[40rem] text-left">
                     <thead>
                       <tr className="border-b border-border type-kicker">
                         <th className="px-4 py-3 font-medium">Asset</th>
+                        <th className="px-4 py-3 font-medium">Presence</th>
                         <th className="px-4 py-3 text-right font-medium">
                           Portfolio %
                         </th>
@@ -379,7 +420,7 @@ function ComparePage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {comparison.overlap.map((row) => (
+                      {comparison.rows.map((row) => (
                         <tr key={row.id} className="hover:bg-accent/40">
                           <td className="px-4 py-4">
                             <div className="flex items-center gap-3">
@@ -397,6 +438,9 @@ function ComparePage() {
                               </span>
                             </div>
                           </td>
+                          <td className="px-4 py-4 type-meta">
+                            {sideLabel(row.side)}
+                          </td>
                           <td className="px-4 py-4 text-right tabular-nums">
                             {formatWeight(row.portfolioPercent)}
                           </td>
@@ -406,10 +450,8 @@ function ComparePage() {
                           <td
                             className={cn(
                               "px-4 py-4 text-right tabular-nums",
-                              row.portfolioPercent - row.basketPercent > 0 &&
-                                "text-up",
-                              row.portfolioPercent - row.basketPercent < 0 &&
-                                "text-down",
+                              row.difference > 0 && "text-up",
+                              row.difference < 0 && "text-down",
                             )}
                           >
                             {formatDelta(row.portfolioPercent, row.basketPercent)}
@@ -446,32 +488,21 @@ function ComparePage() {
 
           <section className="flex flex-col gap-3 sm:flex-row">
             <Button asChild>
-              <Link to="/basket/$id" params={{ id: basket.id }} hash="simulator">
+              <Link to="/simulator" search={{ basket: basket.id }}>
                 <FlaskConical />
                 Simulate this Basket
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <a href="#simulator">
+              <Link
+                to="/simulator"
+                search={{ source: "portfolio", wallet: wallet || undefined }}
+              >
                 <FlaskConical />
                 Simulate My Portfolio
-              </a>
+              </Link>
             </Button>
           </section>
-
-          {portfolioHoldings.length > 0 ? (
-            <StrategySimulator
-              holdings={portfolioHoldings}
-              amount={amount}
-              scenario={scenario}
-              onAmount={setAmount}
-              onScenario={setScenario}
-            />
-          ) : (
-            <p className="type-body">
-              This wallet has no PreStocks to simulate.
-            </p>
-          )}
         </div>
       ) : null}
     </div>
@@ -498,20 +529,7 @@ function CountCard({
   );
 }
 
-function DifferenceCard({
-  row,
-}: {
-  row: {
-    id: string;
-    symbol: string;
-    name: string;
-    image: string;
-    initials: string;
-    portfolioPercent: number;
-    basketPercent: number;
-    difference: number;
-  };
-}) {
+function DifferenceCard({ row }: { row: CompareRow }) {
   return (
     <div className="rounded-2xl border border-border bg-card px-4 py-4">
       <div className="flex items-center gap-3">
@@ -523,7 +541,9 @@ function DifferenceCard({
         />
         <div>
           <p className="type-card">{row.name}</p>
-          <p className="font-mono type-meta">{row.symbol}</p>
+          <p className="font-mono type-meta">
+            {row.symbol} · {sideLabel(row.side)}
+          </p>
         </div>
       </div>
       <dl className="mt-4 grid grid-cols-3 gap-2 type-meta">
@@ -544,8 +564,8 @@ function DifferenceCard({
           <dd
             className={cn(
               "mt-1 tabular-nums",
-              row.portfolioPercent - row.basketPercent > 0 && "text-up",
-              row.portfolioPercent - row.basketPercent < 0 && "text-down",
+              row.difference > 0 && "text-up",
+              row.difference < 0 && "text-down",
             )}
           >
             {formatDelta(row.portfolioPercent, row.basketPercent)}
