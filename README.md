@@ -4,7 +4,7 @@
 
 **Demo:** https://pre-launched.vercel.app
 
-**Try it:** open [/portfolio](https://pre-launched.vercel.app/portfolio) and click **Try a sample wallet** — a public Solana wallet that holds five PreStocks, with average-cost basis and unrealized P&L resolved from its on-chain history.
+**Try it:** open [/portfolio](https://pre-launched.vercel.app/portfolio) and click **Try a sample wallet** — a public Solana wallet that has bought Anduril and Neuralink PreStocks with USDC in small recurring buys since June 2026, with average-cost basis and unrealized P&L resolved from its on-chain history.
 
 | Home — live token price vs mark | Portfolio — sample wallet with cost basis |
 | --- | --- |
