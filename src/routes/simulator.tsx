@@ -261,7 +261,7 @@ function SimulatorPage() {
             </Button>
           </div>
           <p className="mt-2 type-meta">
-            Uses current PreStocks weights from this wallet. Not a trade.
+            Uses this wallet's current PreStocks weights.
           </p>
         </form>
       )}
@@ -306,17 +306,10 @@ function SimulatorPage() {
 
       {source === "portfolio" && snapshot && snapshot.unpricedCount > 0 ? (
         <p className="mt-4 type-meta">
-          {snapshot.unpricedCount} holding
-          {snapshot.unpricedCount === 1 ? " has" : "s have"} no current catalog
-          price and {snapshot.unpricedCount === 1 ? "is" : "are"} excluded from
-          these weights.
+          {snapshot.unpricedCount} unpriced holding
+          {snapshot.unpricedCount === 1 ? "" : "s"} excluded.
         </p>
       ) : null}
-
-      <p className="mt-8 type-meta">
-        Hypothetical simulation only. PreLaunch does not execute trades or
-        predict returns.
-      </p>
     </div>
   );
 }

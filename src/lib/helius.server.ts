@@ -49,9 +49,6 @@ export class HeliusRequestError extends Error {
   }
 }
 
-function log(_event: string, _data: Record<string, unknown>) {
-  return;
-}
 
 function heliusKey() {
   return env("HELIUS_API_KEY");
@@ -171,7 +168,6 @@ async function rpc(
       }),
     });
   } catch {
-    log("helius http", { method, status: 0, error: "network" });
     throw new HeliusRequestError(null, "Helius network request failed");
   }
 
@@ -188,11 +184,6 @@ async function rpc(
       : null;
   const errorText = rpcMessage(body?.error);
 
-  log("helius http", {
-    method,
-    status: response.status,
-    error: errorText || null,
-  });
 
   if (response.status === 401 || response.status === 403) {
     throw new HeliusAuthError();
@@ -224,7 +215,6 @@ async function collectPages(
 ): Promise<WalletFetchResult> {
   const tokens: WalletToken[] = [];
   let assetCount = 0;
-  let loggedSample = false;
 
   for (let page = 1; page <= MAX_PAGES; page += 1) {
     const { result } = await rpc(method, { ...base, page, limit: PAGE_SIZE });
@@ -235,21 +225,6 @@ async function collectPages(
     const items = Array.isArray(pageResult.items) ? pageResult.items : null;
     if (!items) throw new HeliusRequestError(200, "Helius items missing");
     assetCount += items.length;
-
-    if (!loggedSample && items[0] && typeof items[0] === "object") {
-      loggedSample = true;
-      const sample = items[0] as Record<string, unknown>;
-      const info =
-        sample.token_info && typeof sample.token_info === "object"
-          ? (sample.token_info as Record<string, unknown>)
-          : null;
-      log("helius sample", {
-        keys: Object.keys(sample),
-        interface: typeof sample.interface === "string" ? sample.interface : null,
-        hasTokenInfo: Boolean(info),
-        tokenInfoKeys: info ? Object.keys(info) : [],
-      });
-    }
 
     for (const item of items) {
       const parsed = parseFungible(item);
@@ -284,7 +259,6 @@ async function fetchFromHelius(ownerAddress: string): Promise<WalletFetchResult>
     ) {
       throw error;
     }
-    log("helius fallback", { method: "searchAssets" });
     result = await collectPages("searchAssets", {
       ownerAddress,
       tokenType: "fungible",
@@ -303,10 +277,6 @@ async function fetchFromHelius(ownerAddress: string): Promise<WalletFetchResult>
     }
   }
 
-  log("helius assets", {
-    assetCount: result.assetCount,
-    fungibleCount: result.fungibleCount,
-  });
   return result;
 }
 
@@ -341,10 +311,6 @@ export async function fetchWalletFungibles(
   if (!options?.fresh) {
     const cached = cache.get(ownerAddress);
     if (cached && Date.now() - cached.at < CACHE_MS) {
-      log("helius cache", {
-        assetCount: cached.result.assetCount,
-        fungibleCount: cached.result.fungibleCount,
-      });
       return cached.result;
     }
   }
@@ -353,11 +319,9 @@ export async function fetchWalletFungibles(
   if (heliusKey()) {
     try {
       result = await fetchFromHelius(ownerAddress);
-    } catch (error) {
-      log("helius fallback", {
-        reason:
-          error instanceof Error ? error.name : "helius_failed",
-      });
+    } catch {
+      // Any Helius failure falls through to the public RPC below.
+      result = null;
     }
   }
 
@@ -408,7 +372,6 @@ async function fetchHistoryPage(
       headers: { Accept: "application/json" },
     });
   } catch {
-    log("helius http", { method: "txHistory", status: 0, error: "network" });
     throw new HeliusRequestError(null, "Helius network request failed");
   }
 
@@ -424,11 +387,6 @@ async function fetchHistoryPage(
       ? rpcMessage((payload as { error?: unknown }).error)
       : "";
 
-  log("helius http", {
-    method: "txHistory",
-    status: response.status,
-    error: errorText || null,
-  });
 
   if (response.status === 401 || response.status === 403) {
     throw new HeliusAuthError();
@@ -469,7 +427,6 @@ export async function fetchWalletHistory(
   if (!options?.fresh) {
     const cached = historyCache.get(ownerAddress);
     if (cached && Date.now() - cached.at < HISTORY_CACHE_MS) {
-      log("helius cache", { historyPages: cached.result.pages, tx: cached.result.raw.length });
       return cached.result;
     }
   }
@@ -499,11 +456,9 @@ export async function fetchWalletHistory(
       }
 
       result = { raw, truncated, pages };
-      log("helius history", { pages, tx: raw.length, truncated });
-    } catch (error) {
-      log("helius fallback", {
-        reason: error instanceof Error ? error.name : "helius_history_failed",
-      });
+    } catch {
+      // Any Helius failure falls through to the public RPC below.
+      result = null;
     }
   }
 

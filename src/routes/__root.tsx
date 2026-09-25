@@ -1,7 +1,6 @@
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import { Toaster } from "sonner";
 import { SiteShell } from "@/components/site-shell";
-import { AuthProvider } from "@/lib/auth/provider";
 import { getPreStocksFn } from "@/lib/prestocks.functions";
 import { setPreStockCatalog } from "@/lib/prestocks";
 import { SITE_DESCRIPTION, SITE_TITLE } from "@/lib/seo";
@@ -60,14 +59,12 @@ function RootDocument() {
         <HeadContent />
       </head>
       <body>
-        <AuthProvider>
-          <ThemeProvider>
-            <SiteShell>
-              <Outlet />
-            </SiteShell>
-            <ThemedToaster />
-          </ThemeProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <SiteShell>
+            <Outlet />
+          </SiteShell>
+          <ThemedToaster />
+        </ThemeProvider>
         <Scripts />
       </body>
     </html>

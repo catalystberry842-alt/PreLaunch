@@ -27,6 +27,7 @@ Demo: https://prelaunched.grok.me/
 - [Limitations](#limitations)
 - [Local development](#local-development)
 - [Testing and CI](#testing-and-ci)
+- [Hosting (grok.me)](#hosting-grokme)
 - [Repository structure](#repository-structure)
 
 Deeper docs: [`docs/architecture.md`](docs/architecture.md) · [`docs/data-model.md`](docs/data-model.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`SECURITY.md`](SECURITY.md)
@@ -78,7 +79,7 @@ See [`docs/architecture.md`](docs/architecture.md) for module-level detail.
 
 - React 19, TanStack Start / Router, TypeScript (strict)
 - Tailwind CSS v4, Radix UI primitives, lucide icons, Recharts (allocation donut only)
-- Nitro (Vercel preset) for the server bundle
+- Nitro (Vercel preset) for the server bundle; Grok app-builder hosting wiring for [grok.me](#hosting-grokme)
 - PreStocks public catalog API
 - Optional [Helius](https://www.helius.dev/) (DAS + Enhanced Transactions), public Solana JSON-RPC fallback
 - Tests: Node's built-in test runner with `--experimental-strip-types` (no extra test framework)
@@ -107,7 +108,7 @@ Every derived number is either computed from real inputs or `null`:
 | `unrealizedPnl` | `value − costBasis`                      | either side unavailable                                           |
 | `realizedPnl`   | sales matched to average cost            | any sale lacks proceeds or fully-known cost; history not complete |
 
-The UI (`src/routes/portfolio.tsx`) renders `null` as **Unavailable** and explains each summary figure (e.g. "Verified for 1 of 2 holdings", "No sales in loaded history") via the pure `summaryNotes()` helper.
+The UI (`src/routes/portfolio.tsx`) renders `null` as **Unavailable**, marks totals with unpriced holdings as **Partial**, and adds a short status label under each summary figure (e.g. "1 of 2 verified", "No sales", "Missing prices") from the pure `summaryNotes()` helper.
 
 ## PreStocks API
 
@@ -191,7 +192,7 @@ P&L             = finalValue − Σ startingValueᵢ
 return %        = P&L / Σ startingValueᵢ × 100
 ```
 
-Values round to cents, return to 0.1%; moves are clamped to −90% … +200%. Every simulation opens at **0%** on every position. The UI labels everything _Hypothetical_. Worked example (unit-tested): $10,000 split 30/30/20/20 with moves +25%/−10%/+15%/+40% → $11,550 final, +$1,550 P&L, +15.5% return.
+Values round to cents, return to 0.1%; moves are clamped to −90% … +200%. Every simulation opens at **0%** on every position. The simulator carries a _Hypothetical_ badge and a "not a forecast" label. Worked example (unit-tested): $10,000 split 30/30/20/20 with moves +25%/−10%/+15%/+40% → $11,550 final, +$1,550 P&L, +15.5% return.
 
 ## Security model
 
@@ -233,14 +234,30 @@ Portfolio pages call live services (PreStocks API, Solana RPC/Helius), so they n
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint .
 npm test            # node --test on src/**/*.test.ts
-npm run build       # vite build (Nitro, Vercel preset) + db:migrate (no-op without DATABASE_URL)
+npm run build       # vite build (Nitro, Vercel preset), then db:migrate (no-op: there is no migrations/ directory)
 ```
 
 Unit tests cover wallet validation, mint matching, price-unavailable handling, transaction parsing, average cost, comparison, basket allocation validation, discovery/ranking and the simulator math.
 
-`npm run test:template` runs the app-builder template's own script tests (`scripts/*.test.mjs`). Several of them expect template files (`.grok/…`, `public/__grok/…`) that are not part of this repository, so they are not part of the CI gate.
+`npm run test:template` runs the kept hosting scripts' own tests (`scripts/*.test.mjs`: env wrapper, PWA/OG head, migration plan). Several expect platform-provided files (`.grok/…`, `public/__grok/…`) that are not in this repository, so they are not part of the CI gate.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, lint, test and build on Node 22 for pushes and pull requests to `main`. Dependabot checks npm and GitHub Actions weekly.
+
+## Hosting (grok.me)
+
+The live app at https://prelaunched.grok.me/ is built and deployed by the Grok app builder from this repository. The template wiring it relies on is kept as-is:
+
+| Piece                                                                     | Role                                                                                                                                            |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/with-app-env.mjs`                                                | Wraps `dev`, `build`, `build:dev` and `preview`; merges `VITE_*` values from `.grok/app-env.json` (platform-provided, not in the repo).         |
+| `scripts/grok-pwa-plugin.mjs`, `grok-pwa-shared.mjs`, `install-page.html` | Vite plugin (dev/preview): web manifest, apple-touch-icon, OG/share card, `grok.com/grok-app-builder/extensions.js`, and the `?install=1` page. |
+| `server/middleware/grok-pwa.ts`                                           | The deployed half of the same head wiring, registered through Nitro `serverDir: "./server"`.                                                    |
+| `src/lib/og/site.json`                                                    | OG card identity read by the PWA/OG code.                                                                                                       |
+| `scripts/app-env-plugin.mjs`                                              | Dev-only `/__app-env` endpoint.                                                                                                                 |
+| `scripts/migrate.mjs`, `migration-plan.mjs`                               | The platform build's `db:migrate` step. PreLaunch has no database and no `migrations/` directory, so it exits without connecting.               |
+| `isWorkspacePreview()` in `src/lib/env.server.ts`                         | Workspace preview vs deployed app (`GROK_PROJECT_ID`); detailed upstream errors show only in the preview or non-production builds.              |
+
+The icons (`/__grok/icon-180.png`) and OG image come from the platform, not this repository.
 
 ## Repository structure
 
@@ -261,12 +278,10 @@ src/
     baskets.ts            Basket store (localStorage)
     community.ts          Local saves / views / ranking
     portfolio-load.server.ts  Server orchestration
-    auth/, app-data/, db.ts, multiplayer/  App-builder template infrastructure (not used by PreLaunch features)
   types/                  Portfolio + PreStocks types
   data/mock-baskets.ts    Seed strategies
-server/                   Nitro middleware (PWA manifest/head)
-scripts/                  Build/dev wrappers and template tooling
-migrations/auth/          Template's opt-in Better Auth schema (not applied; see docs/data-model.md)
+server/                   Nitro middleware: Grok PWA/OG head (deployed)
+scripts/                  Grok hosting wiring: env wrapper, PWA/OG plugin, migrate step
 docs/                     Architecture and data model
 ```
 

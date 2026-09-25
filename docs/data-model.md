@@ -1,6 +1,6 @@
 # Data model
 
-PreLaunch has no application database tables. Its models are TypeScript types, populated from the PreStocks API, Solana chain data, and the browser's storage. This document lists them as they exist in code.
+PreLaunch has no database. Its models are TypeScript types, populated from the PreStocks API, Solana chain data, and the browser's storage. This document lists them as they exist in code.
 
 ## Catalog
 
@@ -144,6 +144,6 @@ Per-mint accumulator: `knownQty`, `knownCost`, `unknownQty`, `realizedPnl`, `rea
 | `prelaunch.session-views.v1`      | sessionStorage | Views already counted this session   |
 | `prelaunch.portfolio.snapshot.v2` | sessionStorage | Last `PortfolioSnapshot`             |
 
-## Migrations
+## Database
 
-`migrations/auth/0001_auth.sql` is the app-builder template's Better Auth schema (`user`, `session`, `account`, `verification`). It lives in a subdirectory on purpose: both `scripts/migrate.mjs` and `src/lib/db.ts` read `migrations/` non-recursively, so it is **not applied**, and PreLaunch features do not use it. No PreLaunch data is stored server-side.
+None. There is no `migrations/` directory; the build's `db:migrate` step (kept for the Grok platform build) finds nothing to apply and exits without connecting. No PreLaunch data is stored server-side.

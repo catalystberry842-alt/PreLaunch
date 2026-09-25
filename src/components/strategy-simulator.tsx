@@ -122,11 +122,6 @@ export function StrategySimulator({
           {context ? <p className="mt-1 type-meta">{context}</p> : null}
         </div>
       ) : null}
-      <p className="mt-3 max-w-xl type-body">
-        Hypothetical outcomes only. Set a % move per position; nothing is traded, priced, or
-        forecast.
-      </p>
-
       <div className="mt-6 grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
           <Label htmlFor="sim-amount">Starting value</Label>
@@ -168,7 +163,7 @@ export function StrategySimulator({
           </div>
 
           <p className="mt-5 type-kicker" id="sim-apply-all">
-            Apply one move to all positions
+            Apply to all
           </p>
           <div className="mt-2 flex flex-wrap gap-2" role="group" aria-labelledby="sim-apply-all">
             {SCENARIO_PRESETS.map((value) => {
@@ -191,32 +186,28 @@ export function StrategySimulator({
           <dl className="mt-6 grid grid-cols-2 gap-3" aria-live="polite">
             <SummaryStat label="Starting value" value={formatPrice(result.startingValue)} />
             <SummaryStat
-              label="Hypothetical value"
+              label="Result"
               value={formatPrice(result.finalValue)}
               tone={toneFor(result.pnl)}
             />
             <SummaryStat
-              label="Hypothetical P&L"
+              label="P&L"
               value={formatSignedUsd(result.pnl)}
               tone={toneFor(result.pnl)}
             />
             <SummaryStat
-              label="Hypothetical return"
+              label="Return"
               value={formatPercent(result.returnPercent)}
               tone={toneFor(result.pnl)}
             />
           </dl>
           <p className="mt-3 type-meta">
-            {holdings.length} position{holdings.length === 1 ? "" : "s"} · hypothetical, not a
-            forecast
+            {holdings.length} position{holdings.length === 1 ? "" : "s"} · not a forecast
           </p>
         </div>
 
         <div>
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <h3 className="type-card">Positions</h3>
-            <p className="type-meta">Hypothetical move per position</p>
-          </div>
+          <h3 className="type-card">Positions</h3>
           <ul className="mt-3 space-y-3">
             {holdings.map((item, index) => {
               const outcome = result.rows[index];
@@ -235,7 +226,7 @@ export function StrategySimulator({
                     </div>
                     <div className="w-full sm:w-36 sm:shrink-0">
                       <Label htmlFor={`sim-pos-${id}`} className="whitespace-nowrap type-meta">
-                        Hypothetical move
+                        Move
                       </Label>
                       <div className="relative mt-1">
                         <Input
@@ -262,11 +253,11 @@ export function StrategySimulator({
                   >
                     <PositionStat label="Allocation" value={`${item.allocation}%`} />
                     <PositionStat
-                      label="Starting value"
+                      label="Start"
                       value={formatPrice(outcome.startingValue)}
                     />
                     <PositionStat
-                      label="Resulting value"
+                      label="Result"
                       value={formatPrice(outcome.resultingValue)}
                     />
                     <PositionStat

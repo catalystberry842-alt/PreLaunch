@@ -18,21 +18,9 @@ const PRODUCTION_MESSAGES = {
   wallet_read: "Unable to read this wallet right now.",
 } as const;
 
-function redactWallet(wallet: string) {
-  if (wallet.length <= 8) return "…";
-  return `${wallet.slice(0, 4)}…${wallet.slice(-4)}`;
-}
-
-function log(_event: string, _data: Record<string, unknown>) {
-  return;
-}
-
+/** Upstream error details: Grok workspace preview or non-production builds only. */
 function detailEnabled() {
-  return isWorkspacePreview() || envNode() !== "production";
-}
-
-function envNode() {
-  return (process.env.NODE_ENV ?? "").trim() || "development";
+  return isWorkspacePreview() || (process.env.NODE_ENV ?? "").trim() !== "production";
 }
 
 function fail(
@@ -62,7 +50,6 @@ export async function loadPortfolio(
 ): Promise<PortfolioResponse> {
   const wallet = rawWallet.trim();
   const valid = isSolanaAddress(wallet);
-  log("wallet", { valid, wallet: redactWallet(wallet) });
   if (!valid) {
     return fail(
       "INVALID_WALLET",
@@ -81,14 +68,12 @@ export async function loadPortfolio(
       reason instanceof Error && reason.message
         ? reason.message
         : "PreStocks API request failed";
-    log("prestocks", { status: "failed", error: detail.slice(0, 180) });
     return fail("PRESTOCKS_REQUEST_FAILED", "catalog", detail);
   }
 
   const mints = catalog
     .map((item) => normalizeContractAddress(item.contractAddress))
     .filter(Boolean);
-  log("prestocks", { status: "ok", count: catalog.length, mints: mints.length });
 
   const helius = await import("@/lib/helius.server");
   let tokens;
@@ -134,11 +119,6 @@ export async function loadPortfolio(
       historyMessage =
         "Older transactions were not loaded. Cost basis may be incomplete.";
     }
-    log("history", {
-      raw: history.raw.length,
-      matched: transactions.length,
-      truncated,
-    });
   } catch (reason) {
     historyStatus = "unavailable";
     const configOrAuth =
@@ -151,10 +131,6 @@ export async function loadPortfolio(
     } else {
       historyMessage = "Unable to load transaction history.";
     }
-    log("history", {
-      status: "failed",
-      error: reason instanceof Error ? reason.name : "unknown",
-    });
   }
 
   const snapshot = buildPortfolioSnapshot(wallet, tokens.tokens, catalog, undefined, {
@@ -162,13 +138,6 @@ export async function loadPortfolio(
     status: historyStatus,
     message: historyMessage,
     truncated,
-  });
-  log("match", {
-    assets: tokens.assetCount,
-    fungible: tokens.fungibleCount,
-    prestocks: catalog.length,
-    matched: snapshot.positions.length,
-    tx: snapshot.transactions.length,
   });
 
   return { ok: true, snapshot };

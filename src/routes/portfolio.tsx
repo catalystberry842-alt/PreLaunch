@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Copy, ExternalLink, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { baskets } from "@/lib/baskets";
 import { cachePortfolioSnapshot } from "@/lib/portfolio-cache";
-import { formatAddress, formatCostBasis, formatDate, formatPrice, formatQuantity, formatSignedUsd } from "@/lib/format";
+import { formatAddress, formatDate, formatPrice, formatQuantity, formatSignedUsd } from "@/lib/format";
 import { summaryNotes } from "@/lib/portfolio";
 import { getPortfolioFn } from "@/lib/portfolio.functions";
 import { pageHead } from "@/lib/seo";
@@ -265,10 +265,8 @@ function PortfolioPage() {
       ) : null}
 
       <p className="mt-10 max-w-2xl type-meta leading-relaxed">
-        Portfolio values use current PreStocks catalog prices. Cost basis is
-        calculated from available wallet transaction history. Transfers and
-        transactions with insufficient pricing data are excluded from cost-basis
-        calculations. This dashboard does not execute transactions.
+        Values use current PreStocks catalog prices. Cost basis uses verified
+        wallet history only; transfers are excluded. Read-only.
       </p>
     </div>
   );
@@ -361,6 +359,24 @@ function PnlText({ value }: { value: number | null }) {
   );
 }
 
+function SummaryFigure({
+  label,
+  note,
+  children,
+}: {
+  label: string;
+  note: string | null;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="type-kicker">{label}</dt>
+      <dd className="mt-1 font-display text-xl tabular-nums">{children}</dd>
+      {note ? <dd className="mt-1 type-meta">{note}</dd> : null}
+    </div>
+  );
+}
+
 function Unavailable() {
   return <span className="text-muted-foreground">Unavailable</span>;
 }
@@ -397,44 +413,28 @@ function Results({
         </h2>
         <p className="mt-2 font-display text-4xl tabular-nums">{formatPrice(totalValue)}</p>
         <p className="mt-1 type-meta">
-          Total PreStocks value at current catalog prices · {positions.length} holding
-          {positions.length === 1 ? "" : "s"}
+          Current value · {positions.length} holding{positions.length === 1 ? "" : "s"}
+          {snapshot.unpricedCount > 0 ? (
+            <span className="text-foreground">
+              {" "}
+              · Partial ({snapshot.unpricedCount} unpriced)
+            </span>
+          ) : null}
         </p>
-        {snapshot.unpricedCount > 0 ? (
-          <p className="mt-1 type-meta text-foreground">
-            Partial: {snapshot.unpricedCount} holding
-            {snapshot.unpricedCount === 1 ? " has" : "s have"} no current catalog
-            price and {snapshot.unpricedCount === 1 ? "is" : "are"} excluded from
-            this total.
-          </p>
-        ) : null}
         <dl className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div>
-            <dt className="type-kicker">Total cost basis</dt>
-            <dd className="mt-1 font-display text-xl tabular-nums">
-              {formatCostBasis(snapshot.totalCostBasis)}
-            </dd>
-            <dd className="mt-1 type-meta">{notes.costBasis}</dd>
-          </div>
-          <div>
-            <dt className="type-kicker">Unrealized P&L</dt>
-            <dd className="mt-1 font-display text-xl tabular-nums">
-              <PnlText value={snapshot.unrealizedPnl} />
-            </dd>
-            <dd className="mt-1 type-meta">{notes.unrealized}</dd>
-          </div>
-          <div>
-            <dt className="type-kicker">Realized P&L</dt>
-            <dd className="mt-1 font-display text-xl tabular-nums">
-              <PnlText value={snapshot.realizedPnl} />
-            </dd>
-            <dd className="mt-1 type-meta">{notes.realized}</dd>
-          </div>
+          <SummaryFigure label="Cost basis" note={notes.costBasis}>
+            <MaybeUsd value={snapshot.totalCostBasis} />
+          </SummaryFigure>
+          <SummaryFigure label="Unrealized P&L" note={notes.unrealized}>
+            <PnlText value={snapshot.unrealizedPnl} />
+          </SummaryFigure>
+          <SummaryFigure label="Realized P&L" note={notes.realized}>
+            <PnlText value={snapshot.realizedPnl} />
+          </SummaryFigure>
         </dl>
         <p className="mt-4 type-meta">
-          Cost basis method: Average cost · History: {notes.history}
+          Average cost · {notes.history} · Updated {formatFetchedAt(fetchedAt)}
         </p>
-        <p className="mt-1 type-meta">Last updated: {formatFetchedAt(fetchedAt)}</p>
         <Button type="button" variant="outline" className="mt-4" onClick={onRefresh}>
           <RefreshCw />
           Refresh Portfolio
@@ -446,7 +446,6 @@ function Results({
       {pricedPositions.length > 0 ? (
         <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
           <h2 className="type-card">Portfolio allocation</h2>
-          <p className="mt-1 type-meta">Share of priced PreStocks value.</p>
           <AllocationDonut
             className="mt-5"
             segments={pricedPositions.map((item) => ({
@@ -553,8 +552,7 @@ function Results({
         <div className="mb-4">
           <h2 className="type-card">Transactions</h2>
           <p className="mt-1 type-meta">
-            PreStocks movements from verified wallet history. Cost basis method:
-            Average cost.
+            PreStocks movements from verified wallet history.
           </p>
         </div>
         {snapshot.historyStatus === "unavailable" ? (

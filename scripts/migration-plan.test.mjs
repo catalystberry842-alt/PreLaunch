@@ -4,7 +4,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  readdirSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -54,12 +53,6 @@ test("pending migrations are returned in name order", () => {
 test("non-.sql entries are dropped (readdir also yields the auth/ directory)", () => {
   assert.equal(isMigrationFile("auth"), false);
   assert.deepEqual(pendingMigrations(["auth", "README.md"], []), []);
-});
-
-test("the auth schema ships outside the globbed directory", () => {
-  const migrationsDir = join(projectRoot(), "migrations");
-  assert.deepEqual(pendingMigrations(readdirSync(migrationsDir), []), []);
-  assert.ok(readdirSync(join(migrationsDir, "auth")).includes("0001_auth.sql"));
 });
 
 test("this workspace's auth schema copy is byte-identical to its source", () => {

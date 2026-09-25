@@ -139,12 +139,7 @@ function BasketPage() {
       {launched ? (
         <div className="border-b border-border bg-card">
           <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
-            <p className="type-card">Saved in this browser</p>
-            <p className="mt-1 type-meta">
-              This strategy idea is published on PreLaunch on this device. It
-              did not create a token, liquidity, an order, or a blockchain
-              transaction.
-            </p>
+            <p className="type-card">Published in this browser</p>
           </div>
         </div>
       ) : null}

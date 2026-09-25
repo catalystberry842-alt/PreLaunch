@@ -25,11 +25,6 @@ export function formatSignedUsd(value: number) {
   return body;
 }
 
-export function formatCostBasis(value: number | null | undefined) {
-  if (value == null || !Number.isFinite(value)) return "Cost basis unavailable";
-  return formatPrice(value);
-}
-
 export function formatCompact(value: number) {
   const sign = value < 0 ? "-" : "";
   const abs = Math.abs(value);

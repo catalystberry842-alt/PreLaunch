@@ -146,7 +146,10 @@ export function buildPortfolioSnapshot(
   };
 }
 
-/** Explain why each summary figure is present, partial, or unavailable. */
+/**
+ * Terse status labels for the portfolio summary. A label is null when the
+ * figure is complete and needs no qualifier.
+ */
 export function summaryNotes(snapshot: PortfolioSnapshot) {
   const held = snapshot.positions.length;
   const covered = snapshot.positions.filter((item) => item.costBasis != null).length;
@@ -154,42 +157,33 @@ export function summaryNotes(snapshot: PortfolioSnapshot) {
 
   const history =
     snapshot.historyStatus === "unavailable"
-      ? "unavailable"
+      ? "History unavailable"
       : snapshot.historyStatus === "partial"
-        ? "partial (older transactions not loaded)"
-        : "loaded";
+        ? "History partial"
+        : "History complete";
 
-  let costBasis: string;
-  if (held === 0) {
-    costBasis = "No current holdings";
-  } else if (snapshot.totalCostBasis != null) {
-    costBasis = `Verified for all ${held} holding${held === 1 ? "" : "s"}`;
-  } else if (snapshot.historyStatus === "unavailable") {
-    costBasis = "Transaction history unavailable";
-  } else {
-    costBasis = `Verified for ${covered} of ${held} holding${held === 1 ? "" : "s"}`;
-  }
+  const costBasis =
+    held === 0 || snapshot.totalCostBasis != null
+      ? null
+      : snapshot.historyStatus === "unavailable"
+        ? "No history"
+        : `${covered} of ${held} verified`;
 
-  let unrealized: string;
-  if (snapshot.unrealizedPnl != null) {
-    unrealized = "Current value − cost basis";
-  } else if (snapshot.totalCostBasis != null && snapshot.unpricedCount > 0) {
-    unrealized = "Some holdings have no current price";
-  } else {
-    unrealized = "Needs verified cost basis for every holding";
-  }
+  const unrealized =
+    snapshot.unrealizedPnl != null
+      ? null
+      : snapshot.totalCostBasis != null && snapshot.unpricedCount > 0
+        ? "Missing prices"
+        : "Needs full cost basis";
 
-  let realized: string;
-  if (snapshot.realizedPnl == null) {
-    realized =
-      snapshot.historyStatus === "ok"
-        ? "Some sales lack verified cost or proceeds"
-        : "Needs complete transaction history";
-  } else if (!hasSales) {
-    realized = "No sales in loaded history";
-  } else {
-    realized = "From verified sales in loaded history";
-  }
+  const realized =
+    snapshot.realizedPnl == null
+      ? snapshot.historyStatus === "ok"
+        ? "Unverified sales"
+        : "Needs full history"
+      : hasSales
+        ? null
+        : "No sales";
 
   return { history, costBasis, unrealized, realized };
 }

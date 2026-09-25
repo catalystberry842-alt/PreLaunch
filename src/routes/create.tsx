@@ -362,11 +362,6 @@ function CreatePage() {
 
           <section id="launch" className="rounded-2xl border border-border bg-card p-5">
             <h2 className="type-card">Publish</h2>
-            <p className="mt-1 type-meta">
-              Publishing shares this strategy idea inside PreLaunch (saved in
-              this browser). It does not create a token, liquidity, an order,
-              or a blockchain transaction.
-            </p>
             {issues.length > 0 ? (
               <ul
                 className={cn(
@@ -784,9 +779,8 @@ function LaunchConfirm({
         <StatusBadge label="This browser" />
       </div>
       <p className="mt-3 type-lede">
-        Review the book. Publishing saves this strategy idea on PreLaunch in
-        this browser. It does not create a token, liquidity, an order, or a
-        blockchain transaction.
+        Publishing saves this strategy idea in this browser. No token, order,
+        or transaction is created.
       </p>
 
       <Card className="mt-8 p-6">
@@ -866,11 +860,6 @@ function LaunchSuccess({
         </h1>
         <StatusBadge label="This browser" />
       </div>
-      <p className="mt-3 type-lede">
-        {basket.name} is published as a strategy idea on PreLaunch in this
-        browser. No token, liquidity, order, or blockchain transaction was
-        created.
-      </p>
 
       <Card className="mt-8 p-6">
         <h2 className="font-display text-2xl leading-tight">{basket.name}</h2>

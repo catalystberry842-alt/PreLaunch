@@ -22,9 +22,6 @@ export class SolanaRpcError extends Error {
   }
 }
 
-function log(_event: string, _data: Record<string, unknown>) {
-  return;
-}
 
 function asNumber(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -137,7 +134,6 @@ async function rpc(method: string, params: unknown[]): Promise<unknown> {
     const { status, body } = await postJson(payload);
     lastStatus = status;
     if (isRateLimited(status, body)) {
-      log("rpc retry", { attempt, status: 429 });
       await sleep(700 * (attempt + 1));
       continue;
     }
@@ -146,7 +142,6 @@ async function rpc(method: string, params: unknown[]): Promise<unknown> {
     }
     if (typeof body === "object" && (body as { error?: unknown }).error) {
       if (isRateLimited(200, body)) {
-        log("rpc retry", { attempt, status: 429 });
         await sleep(700 * (attempt + 1));
         continue;
       }
@@ -176,11 +171,6 @@ export async function fetchFungiblesByMints(
     if (wanted.has(token.mint)) tokens.push(token);
   }
 
-  log("rpc assets", {
-    source: "public",
-    mints: wanted.size,
-    accounts: tokens.length,
-  });
   return tokens;
 }
 
@@ -236,10 +226,5 @@ export async function fetchParsedHistory(ownerAddress: string): Promise<{
   }
 
   const truncated = signatures.length >= HISTORY_SIG_LIMIT;
-  log("rpc history", {
-    signatures: wanted.length,
-    parsed: parsed.length,
-    truncated,
-  });
   return { raw: parsed, truncated, pages: 1 };
 }

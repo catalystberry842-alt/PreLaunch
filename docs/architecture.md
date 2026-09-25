@@ -6,15 +6,15 @@ PreLaunch is **read-only**: it reads a public catalog and public Solana chain da
 
 ## Layers
 
-| Layer                   | Location                                                                                                                                            | Responsibility                                                                                                                                             |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Routes (UI)             | `src/routes/*.tsx`                                                                                                                                  | Pages, URL search params, loading/empty/error states.                                                                                                      |
-| Components              | `src/components/`                                                                                                                                   | Presentational pieces: `strategy-simulator`, `allocation-bar`, `allocation-donut`, cards, `ui/` primitives (Radix + Tailwind).                             |
-| Server functions        | `src/lib/*.functions.ts`                                                                                                                            | `getPreStocksFn` (GET) and `getPortfolioFn` (POST). They dynamically import server-only modules.                                                           |
-| Server-only modules     | `src/lib/*.server.ts`                                                                                                                               | Helius + public RPC clients, env access, portfolio orchestration. Each throws if evaluated where `window` exists.                                          |
-| Pure domain logic       | `src/lib/portfolio.ts`, `cost-basis.ts`, `helius-history.ts`, `compare.ts`, `calculations.ts`, `basket-validation.ts`, `discovery.ts`, `ranking.ts` | Deterministic functions with unit tests. No I/O.                                                                                                           |
-| Browser stores          | `src/lib/baskets.ts`, `community.ts`, `portfolio-cache.ts`                                                                                          | `localStorage` / `sessionStorage` persistence.                                                                                                             |
-| Template infrastructure | `src/lib/auth/`, `src/lib/app-data/`, `src/lib/db.ts`, `src/lib/multiplayer/`, `server/`, most of `scripts/`                                        | Inherited from the app-builder template (auth provider, database helper, PWA middleware, env wrappers). No PreLaunch feature reads or writes through them. |
+| Layer               | Location                                                                                                                                                           | Responsibility                                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Routes (UI)         | `src/routes/*.tsx`                                                                                                                                                 | Pages, URL search params, loading/empty/error states.                                                                                     |
+| Components          | `src/components/`                                                                                                                                                  | Presentational pieces: `strategy-simulator`, `allocation-bar`, `allocation-donut`, cards, `ui/` primitives (Radix + Tailwind).            |
+| Server functions    | `src/lib/*.functions.ts`                                                                                                                                           | `getPreStocksFn` (GET) and `getPortfolioFn` (POST). They dynamically import server-only modules.                                          |
+| Server-only modules | `src/lib/*.server.ts`                                                                                                                                              | Helius + public RPC clients, env access, portfolio orchestration. Each throws if evaluated where `window` exists.                         |
+| Pure domain logic   | `src/lib/portfolio.ts`, `cost-basis.ts`, `helius-history.ts`, `compare.ts`, `calculations.ts`, `basket-validation.ts`, `discovery.ts`, `ranking.ts`                | Deterministic functions with unit tests. No I/O.                                                                                          |
+| Grok hosting wiring | `scripts/with-app-env.mjs`, `scripts/grok-pwa-*.mjs`, `scripts/app-env-plugin.mjs`, `scripts/migrate.mjs`, `server/middleware/grok-pwa.ts`, `src/lib/og/site.json` | Kept from the app-builder template for the grok.me deploy: env wrapper, PWA manifest/icons, OG card, `extensions.js`, no-op migrate step. |
+| Browser stores      | `src/lib/baskets.ts`, `community.ts`, `portfolio-cache.ts`                                                                                                         | `localStorage` / `sessionStorage` persistence.                                                                                            |
 
 ## Request flows
 
@@ -71,12 +71,12 @@ Both are client-side and pure:
 
 ## Server-only boundary
 
-| Module                             | Guard                                                                                        |
-| ---------------------------------- | -------------------------------------------------------------------------------------------- |
-| `src/lib/env.server.ts`            | Reads `process.env` and `.env.local` / `.env`; skips `VITE_*` keys from files.               |
-| `src/lib/helius.server.ts`         | `if (typeof window !== "undefined") throw` at module top. Only consumer of `HELIUS_API_KEY`. |
-| `src/lib/solana-rpc.server.ts`     | Same guard.                                                                                  |
-| `src/lib/portfolio-load.server.ts` | Imported only via `await import()` inside server function / API handlers.                    |
+| Module                             | Guard                                                                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/lib/env.server.ts`            | Reads `process.env`, then `.env.local` / `.env` (and `/workspace/.env.local` in the Grok workspace); skips `VITE_*` keys from files. |
+| `src/lib/helius.server.ts`         | `if (typeof window !== "undefined") throw` at module top. Only consumer of `HELIUS_API_KEY`.                                         |
+| `src/lib/solana-rpc.server.ts`     | Same guard.                                                                                                                          |
+| `src/lib/portfolio-load.server.ts` | Imported only via `await import()` inside server function / API handlers.                                                            |
 
 The client build (`.vercel/output/static`) contains no `HELIUS_API_KEY`, `helius-rpc` host, or `api-key=` string; this is checked as part of the release checklist in [`SECURITY.md`](../SECURITY.md).
 
@@ -84,9 +84,55 @@ The client build (`.vercel/output/static`) contains no `HELIUS_API_KEY`, `helius
 
 - **Never substitute data.** Missing price → `null` + _Unavailable_; missing history → `historyStatus: "unavailable"`; truncated history → `"partial"`.
 - **Degrade, don't fail.** History problems never hide holdings; Helius problems fall back to public RPC.
-- **Fixed messages in production.** Detailed upstream messages are shown only in the workspace preview / non-production builds (`detailEnabled()` in `portfolio-load.server.ts`).
+- **Fixed messages in production.** Detailed upstream messages are shown only in the Grok workspace preview (`isWorkspacePreview()`: no `GROK_PROJECT_ID`) or non-production builds (`detailEnabled()` in `portfolio-load.server.ts`).
+
+## PreStocks catalog
+
+- `GET https://prestocks.com/api/prestocks` (public JSON array). Consumed fields: `name`, `symbol`, `description`, `image`, `external_url`, `contract_address`, `tokenPrice`, `markPrice`, `markValuation`, `impliedValuation`, `supply`.
+- `normalizePreStock()` upper-cases the symbol (used as the internal id), derives a display name, and assigns a PreLaunch-only category from a static symbol map (`src/lib/prestock-meta.ts`; unknown symbols default to "Infrastructure") because the API has no categories.
+- Rows without a string `name` and `symbol` are dropped; an empty or non-array response is an error. Only catalog assets are shown.
+
+## Helius and public RPC
+
+| Step     | With `HELIUS_API_KEY`                                                                                                                                     | Without it / on Helius failure                                                                                                       |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Balances | DAS `getAssetsByOwner` (fungibles, paged, ≤ 5 × 1000), falling back to `searchAssets` (`tokenType: fungible`)                                             | `getTokenAccountsByOwner` for the Token-2022 program on public RPC, filtered to catalog mints                                        |
+| History  | Enhanced Transactions `GET /v0/addresses/{wallet}/transactions` (≤ 6 pages × 100, `token-accounts=balanceChanged`); on 404 retries the `api-mainnet` host | `getSignaturesForAddress` (last 40) + `getTransaction` (jsonParsed), converted to the enhanced shape by `fromParsedRpcTransaction()` |
+
+Public RPC (`src/lib/solana-rpc.server.ts`) rotates between `api.mainnet-beta.solana.com` and `solana-rpc.publicnode.com`, uses a 12 s timeout, and retries rate-limited responses up to 3 times with linear back-off. Helius 401/403 surfaces as `HELIUS_AUTH_ERROR`; `api-key=` fragments in upstream error text are redacted. History is marked **partial** when the page/signature limit is hit.
+
+## Asset matching and cost basis
+
+Wallet tokens match PreStocks **only by exact mint / `contract_address`** (trimmed, never case-folded; names and symbols are never used). Multiple token accounts of one mint are summed; non-catalog mints are ignored.
+
+Cost basis uses **average cost** per mint, processed chronologically (`src/lib/cost-basis.ts`). Classification (`src/lib/helius-history.ts`):
+
+- **Buy** — a swap where exactly one PreStock comes in and USDC/USDT (the only assets valued, at $1) goes out. Cost = stablecoins paid.
+- **Sell** — exactly one PreStock goes out and USDC/USDT comes in. Proceeds = stablecoins received.
+- **Transfer in / out** — everything else, including swaps against non-stable assets and multi-PreStock swaps.
+
+Rules:
+
+- Incoming transfers are not buys; they add _unknown-cost_ quantity. Outgoing transfers are not sales; they reduce quantity (unknown-cost first) and realize nothing.
+- A sale realizes P&L only if proceeds are known _and_ the sold quantity is fully covered by known-cost inventory; otherwise realized P&L is unavailable.
+- A position's cost basis is reported only when known-cost quantity matches the on-chain quantity (1e-6 relative tolerance) with no unknown-cost tokens. Portfolio totals require every holding covered and history status `ok`.
+- The current catalog price is never used as a historical purchase price.
+
+## Simulator math
+
+`calculateHoldingsScenario()` in `src/lib/calculations.ts`, for amount `A`, allocations `wᵢ`, moves `mᵢ` (%):
+
+```
+startingValueᵢ  = A × wᵢ / Σw
+resultingValueᵢ = startingValueᵢ × (1 + mᵢ / 100)
+P&L             = Σ resultingValueᵢ − Σ startingValueᵢ
+return %        = P&L / Σ startingValueᵢ × 100
+```
+
+Values round to cents, return to 0.1%; moves clamp to −90% … +200%; every position opens at 0%. Unit-tested example: $10,000 split 30/30/20/20 with +25/−10/+15/+40% → $11,550, +$1,550, +15.5%.
 
 ## Build and deploy
 
-- `npm run build` → `scripts/with-app-env.mjs vite build` (TanStack Start + Nitro, Vercel preset) then `scripts/migrate.mjs`, which exits immediately when `DATABASE_URL` is unset and otherwise applies only top-level files in `migrations/` (there are none; see [`data-model.md`](data-model.md)).
+- `npm run build` → `node scripts/with-app-env.mjs vite build` (TanStack Start + Nitro, Vercel preset, into `.vercel/output`), then `npm run db:migrate` (`scripts/migrate.mjs`). PreLaunch has no database and no `migrations/` directory, so the migrate step exits without connecting; it stays so the platform build keeps its original shape.
+- Nitro registers `server/middleware/grok-pwa.ts` via `serverDir: "./server"`; `scripts/grok-pwa-plugin.mjs` does the same job in dev/preview. Together they add the web manifest, apple-touch-icon, OG card and `grok.com/grok-app-builder/extensions.js`. Icons and the OG image are served by the platform.
 - `vite.config.ts` has no `define` block; environment values reach the client only through Vite's standard `VITE_` prefix, which PreLaunch does not use for secrets.

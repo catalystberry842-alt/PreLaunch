@@ -273,9 +273,8 @@ function Home() {
               Publish a basket to PreLaunch
             </h2>
             <p className="mt-3 max-w-lg type-lede">
-              Pick PreStocks, set weights, write a thesis, and publish the
-              strategy idea in this browser. Publishing never creates a token,
-              liquidity, an order, or a blockchain transaction.
+              Pick PreStocks, set weights, write a thesis, and publish it in
+              this browser.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button asChild>

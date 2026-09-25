@@ -212,7 +212,7 @@ describe("buildPortfolioSnapshot", () => {
     assert.equal(snapshot.positions[0].allocation, 100);
     assert.equal(snapshot.totalCostBasis, 210);
     assert.equal(snapshot.unrealizedPnl, null);
-    assert.equal(summaryNotes(snapshot).unrealized, "Some holdings have no current price");
+    assert.equal(summaryNotes(snapshot).unrealized, "Missing prices");
   });
 });
 
@@ -227,9 +227,9 @@ describe("summaryNotes", () => {
     assert.equal(snapshot.totalCostBasis, null);
     assert.equal(snapshot.realizedPnl, null);
     const notes = summaryNotes(snapshot);
-    assert.equal(notes.history, "unavailable");
-    assert.equal(notes.costBasis, "Transaction history unavailable");
-    assert.equal(notes.realized, "Needs complete transaction history");
+    assert.equal(notes.history, "History unavailable");
+    assert.equal(notes.costBasis, "No history");
+    assert.equal(notes.realized, "Needs full history");
   });
 
   it("reports partial cost-basis coverage", () => {
@@ -264,9 +264,9 @@ describe("summaryNotes", () => {
     );
     assert.equal(snapshot.totalCostBasis, null);
     const notes = summaryNotes(snapshot);
-    assert.equal(notes.costBasis, "Verified for 1 of 2 holdings");
-    assert.equal(notes.realized, "No sales in loaded history");
-    assert.equal(notes.history, "loaded");
+    assert.equal(notes.costBasis, "1 of 2 verified");
+    assert.equal(notes.realized, "No sales");
+    assert.equal(notes.history, "History complete");
   });
 });
 
