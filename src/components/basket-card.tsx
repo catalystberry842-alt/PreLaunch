@@ -7,7 +7,8 @@ import { StockAvatar } from "@/components/stock-avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { creatorIdFromName } from "@/lib/creators";
-import { allocationTotal, formatDate } from "@/lib/format";
+import { allocationTotal, formatDate, formatPercent } from "@/lib/format";
+import { basketPremium } from "@/lib/premium";
 import { resolveConstituents } from "@/lib/prestocks";
 import { isSaved, toggleSave, useCommunity } from "@/lib/community";
 import type { Basket } from "@/lib/types";
@@ -27,6 +28,7 @@ export function BasketCard({
   const saved = ready && isSaved(basket.id);
   const creatorId = creatorIdFromName(basket.creator);
   const preview = items.slice(0, 3);
+  const premium = basketPremium(items);
 
   function onSave() {
     const result = toggleSave(basket);
@@ -118,6 +120,22 @@ export function BasketCard({
           </div>
         )}
       </div>
+      {premium.value != null ? (
+        <div
+          className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3 type-meta"
+          title="Allocation-weighted (token price − mark price) ÷ mark price, from the PreStocks catalog"
+        >
+          <span>
+            Token vs mark · weighted
+            {premium.covered < premium.total
+              ? ` · ${premium.covered} of ${premium.total}`
+              : ""}
+          </span>
+          <span className="tabular-nums text-foreground/90">
+            {formatPercent(premium.value)}
+          </span>
+        </div>
+      ) : null}
       <AllocationBar
         className="mt-4"
         segments={items.map((item) => ({

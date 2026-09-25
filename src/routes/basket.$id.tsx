@@ -28,8 +28,10 @@ import { creatorIdFromName } from "@/lib/creators";
 import {
   formatCompact,
   formatDate,
+  formatPercent,
   formatPrice,
 } from "@/lib/format";
+import { basketPremium, tokenVsMark } from "@/lib/premium";
 import { resolveHoldings } from "@/lib/prestocks";
 import { pageHead } from "@/lib/seo";
 import type { Basket, BasketHolding } from "@/lib/types";
@@ -87,6 +89,7 @@ function BasketPage() {
       value: item.stock?.impliedValuation ?? null,
     })),
   );
+  const premium = basketPremium(holdings);
 
   if (!basket) {
     if (!hydrated) {
@@ -95,11 +98,12 @@ function BasketPage() {
           <div className="h-4 w-24 animate-pulse rounded bg-muted" />
           <div className="mt-4 h-10 w-2/3 max-w-md animate-pulse rounded bg-muted" />
           <div className="mt-3 h-4 w-full max-w-xl animate-pulse rounded bg-muted" />
-          <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-5">
             <div className="h-24 animate-pulse rounded-xl bg-muted" />
             <div className="h-24 animate-pulse rounded-xl bg-muted" />
             <div className="h-24 animate-pulse rounded-xl bg-muted" />
             <div className="h-24 animate-pulse rounded-xl bg-muted" />
+            <div className="col-span-2 h-24 animate-pulse rounded-xl bg-muted lg:col-span-1" />
           </div>
         </div>
       );
@@ -208,7 +212,7 @@ function BasketPage() {
               <ShareBasketButton basket={basket} />
             </div>
           </div>
-          <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Stat label="PreStocks" value={String(stats.count)} />
             <Stat
               label="Largest allocation"
@@ -221,6 +225,16 @@ function BasketPage() {
             <Stat
               label="Average allocation"
               value={stats.average == null ? "—" : `${stats.average}%`}
+            />
+            <Stat
+              label="Token vs mark"
+              value={premium.value == null ? "—" : formatPercent(premium.value)}
+              hint={
+                premium.value == null
+                  ? "Catalog prices unavailable"
+                  : `Weighted by allocation${premium.covered < premium.total ? ` · ${premium.covered} of ${premium.total} priced` : ""}`
+              }
+              className="col-span-2 lg:col-span-1"
             />
           </div>
         </div>
@@ -264,7 +278,10 @@ function BasketPage() {
             <p className="mt-4 type-meta">
               Weighted implied valuation (catalog):{" "}
               {weightedImplied == null ? "Data unavailable" : formatCompact(weightedImplied)}
-              . This is not a NAV or tradable basket price.
+              {" · "}Weighted token vs mark:{" "}
+              {premium.value == null ? "Data unavailable" : formatPercent(premium.value)}
+              . Token vs mark = (token price − mark price) ÷ mark price, from the
+              PreStocks catalog. This is not a NAV or tradable basket price.
             </p>
           </section>
         </div>
@@ -419,20 +436,21 @@ function AllocationBreakdown({
           allocation: item.allocation,
         }))}
       />
-      <div className="mt-5 hidden grid-cols-[1.2fr_0.6fr_0.5fr_0.8fr_0.9fr] gap-3 px-1 type-kicker md:grid">
+      <div className="mt-5 hidden grid-cols-[1.3fr_0.55fr_0.8fr_0.65fr_0.8fr] gap-3 px-1 type-kicker md:grid">
         <span>Company</span>
-        <span>Symbol</span>
         <span className="text-right">Allocation</span>
         <span className="text-right">Token price</span>
-        <span className="text-right">Implied valuation</span>
+        <span className="text-right">Vs mark</span>
+        <span className="text-right">Implied val.</span>
       </div>
       <div className="mt-2 divide-y divide-border md:border-t md:border-border">
         {holdings.map((item) => {
           const stock = item.stock;
+          const premiumPct = stock ? tokenVsMark(stock) : null;
           return (
             <div
               key={item.preStockId}
-              className="grid gap-2 py-4 md:grid-cols-[1.2fr_0.6fr_0.5fr_0.8fr_0.9fr] md:items-center md:gap-3"
+              className="grid gap-2 py-4 md:grid-cols-[1.3fr_0.55fr_0.8fr_0.65fr_0.8fr] md:items-center md:gap-3"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <StockAvatar
@@ -445,14 +463,11 @@ function AllocationBreakdown({
                   <p className="truncate type-card">
                     {stock?.name ?? item.preStockId}
                   </p>
-                  <p className="type-meta md:hidden">
+                  <p className="font-mono type-meta">
                     {stock?.symbol ?? item.preStockId}
                   </p>
                 </div>
               </div>
-              <p className="hidden type-body md:block">
-                {stock?.symbol ?? item.preStockId}
-              </p>
               <p className="text-sm tabular-nums md:text-right">
                 {item.allocation}%
               </p>
@@ -462,6 +477,17 @@ function AllocationBreakdown({
                 </span>
                 <span className="tabular-nums">
                   {stock ? formatPrice(stock.tokenPrice) : "Data unavailable"}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm md:block md:text-right">
+                <span className="type-kicker md:hidden">
+                  Token vs mark
+                </span>
+                <span
+                  className="tabular-nums"
+                  title={stock ? `${formatPrice(stock.tokenPrice)} vs ${formatPrice(stock.markPrice)} mark` : undefined}
+                >
+                  {premiumPct == null ? "—" : formatPercent(premiumPct)}
                 </span>
               </div>
               <div className="flex justify-between text-sm md:block md:text-right">

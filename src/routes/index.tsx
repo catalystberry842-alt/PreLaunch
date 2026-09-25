@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { baskets } from "@/lib/baskets";
 import { useCatalog } from "@/lib/catalog";
+import { formatCompact, formatPercent, formatPrice } from "@/lib/format";
+import { basketPremium, tokenVsMark } from "@/lib/premium";
 import { resolveConstituents } from "@/lib/prestocks";
 import { pageHead } from "@/lib/seo";
 
@@ -47,6 +49,7 @@ function Hero() {
   useCatalog();
   const featured = baskets.getFeatured()[0];
   const items = featured ? resolveConstituents(featured.constituents) : [];
+  const premium = basketPremium(items);
 
   return (
     <section className="border-b border-border">
@@ -142,6 +145,14 @@ function Hero() {
                 </div>
               ))}
             </div>
+            {premium.value != null ? (
+              <p className="mt-5 flex items-center justify-between gap-3 border-t border-border pt-4 type-meta">
+                <span>Token vs mark · weighted</span>
+                <span className="tabular-nums text-foreground/90">
+                  {formatPercent(premium.value)}
+                </span>
+              </p>
+            ) : null}
             <AllocationBar
               className="mt-6 h-2.5"
               segments={items.map((item) => ({
@@ -151,6 +162,74 @@ function Hero() {
             />
           </Card>
         ) : null}
+      </div>
+    </section>
+  );
+}
+
+/** Compact token-vs-mark table for every PreStock in the live catalog. */
+function MarketSnapshot() {
+  const { stocks } = useCatalog();
+  const rows = stocks
+    .map((stock) => ({ stock, premium: tokenVsMark(stock) }))
+    .sort((a, b) => a.stock.name.localeCompare(b.stock.name));
+  if (rows.length === 0) return null;
+
+  return (
+    <section className="border-b border-border">
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="type-kicker">Live from PreStocks</p>
+            <h2 className="mt-3 font-display text-2xl sm:text-3xl">Token price vs mark</h2>
+          </div>
+          <p className="max-w-md type-meta">
+            (Token price − mark price) ÷ mark price. Positive = premium to the
+            mark, negative = discount. Catalog values from the PreStocks API.
+          </p>
+        </div>
+        <div className="mt-6 overflow-hidden rounded-2xl border border-border">
+          <table className="w-full text-left text-sm">
+            <caption className="sr-only">PreStocks token price versus mark price</caption>
+            <thead>
+              <tr className="border-b border-border type-kicker">
+                <th scope="col" className="px-4 py-2.5 font-medium">PreStock</th>
+                <th scope="col" className="px-4 py-2.5 text-right font-medium">Token</th>
+                <th scope="col" className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Mark</th>
+                <th scope="col" className="px-4 py-2.5 text-right font-medium">Vs mark</th>
+                <th scope="col" className="hidden px-4 py-2.5 text-right font-medium md:table-cell">Implied valuation</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map(({ stock, premium }) => (
+                <tr key={stock.id}>
+                  <td className="px-4 py-2.5">
+                    <Link
+                      to="/research/$id"
+                      params={{ id: stock.id }}
+                      className="inline-flex items-center gap-2.5 hover:text-foreground"
+                    >
+                      <StockAvatar initials={stock.initials} name={stock.name} image={stock.image} size="sm" />
+                      <span className="type-card">{stock.name}</span>
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">
+                    {stock.tokenPrice > 0 ? formatPrice(stock.tokenPrice) : "—"}
+                  </td>
+                  <td className="hidden px-4 py-2.5 text-right tabular-nums text-muted-foreground sm:table-cell">
+                    {stock.markPrice > 0 ? formatPrice(stock.markPrice) : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">
+                    {premium == null ? "—" : formatPercent(premium)}
+                  </td>
+                  <td className="hidden px-4 py-2.5 text-right tabular-nums text-muted-foreground md:table-cell">
+                    {stock.impliedValuation > 0 ? formatCompact(stock.impliedValuation) : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );
@@ -242,6 +321,7 @@ function Home() {
   return (
     <>
       <Hero />
+      <MarketSnapshot />
       <Capabilities />
       <section className="border-b border-border">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">

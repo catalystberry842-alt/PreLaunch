@@ -20,8 +20,8 @@ import {
   formatCompact,
   formatPrice,
   formatSupply,
-  percentFromBase,
 } from "@/lib/format";
+import { impliedVsMark, tokenVsMark } from "@/lib/premium";
 import { relatedBaskets } from "@/lib/prestocks";
 import { pageHead } from "@/lib/seo";
 import { copyText } from "@/lib/share";
@@ -104,11 +104,8 @@ function ResearchPage() {
     stock.id,
     hydrated ? baskets.getAll() : baskets.getCatalog(),
   );
-  const tokenVsMark = percentFromBase(stock.tokenPrice, stock.markPrice);
-  const impliedVsMark = percentFromBase(
-    stock.impliedValuation,
-    stock.markValuation,
-  );
+  const tokenVsMarkPct = tokenVsMark(stock);
+  const impliedVsMarkPct = impliedVsMark(stock);
   const overview = stock.description.trim();
   const lede = shortDescription(overview);
 
@@ -168,7 +165,7 @@ function ResearchPage() {
         <Stat
           label="Token vs Mark Price"
           value={
-            tokenVsMark == null ? "—" : <ChangeValue className="text-2xl" value={tokenVsMark} />
+            tokenVsMarkPct == null ? "—" : <ChangeValue className="text-2xl" value={tokenVsMarkPct} />
           }
           hint={`${formatPrice(stock.tokenPrice)} vs ${formatPrice(stock.markPrice)}`}
         />
@@ -184,10 +181,10 @@ function ResearchPage() {
         <Stat
           label="Implied vs Mark Valuation"
           value={
-            impliedVsMark == null ? (
+            impliedVsMarkPct == null ? (
               "—"
             ) : (
-              <ChangeValue className="text-2xl" value={impliedVsMark} />
+              <ChangeValue className="text-2xl" value={impliedVsMarkPct} />
             )
           }
           hint={`${formatCompact(stock.impliedValuation)} vs ${formatCompact(stock.markValuation)}`}
