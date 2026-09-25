@@ -38,12 +38,13 @@ Deeper docs: [`docs/architecture.md`](docs/architecture.md) · [`docs/data-model
 
 | Area             | Route                        | What it does                                                                                                                                                                         |
 | ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Home             | `/`                          | Pitch, featured baskets, and a compact live table of every PreStock's token price vs mark price (premium/discount) and implied valuation.                                            |
 | Discover         | `/discover`                  | Browse the live PreStocks catalog and baskets; search by name, symbol, thesis, creator; filter by category and constituent count.                                                    |
 | Research         | `/research/$id`              | Catalog fields for one PreStock: token price, mark price, token-vs-mark spread, supply, implied and mark valuation, link to the PreStocks page, related baskets.                     |
-| Portfolio        | `/portfolio?wallet=…`        | Holdings, quantity, current price, value, allocation, average-cost basis, unrealized and realized P&L — each shown only when the data supports it, otherwise labelled _Unavailable_. |
+| Portfolio        | `/portfolio?wallet=…`        | Holdings, quantity, current price, value, allocation, average-cost basis, unrealized and realized P&L — each shown only when the data supports it. "Try a sample wallet" fills a real public wallet. |
 | Create / publish | `/create`                    | Select ≥ 2 PreStocks, set allocations that total 100%, write a thesis, publish to this browser.                                                                                      |
-| Basket           | `/basket/$id`                | Thesis, allocation breakdown, catalog data per constituent, embedded simulator.                                                                                                      |
-| Compare          | `/compare?wallet=…&basket=…` | Wallet weights vs a basket's reference weights: overlap, portfolio-only, basket-only, signed difference.                                                                             |
+| Basket           | `/basket/$id`                | Thesis, allocation breakdown, allocation-weighted token-vs-mark premium, catalog data per constituent (token price, vs mark, implied valuation), embedded simulator.                |
+| Compare          | `/compare?wallet=…&basket=…` | Wallet weights vs a basket's reference weights: overlap, portfolio-only, basket-only, signed difference. Also offers the sample wallet.                                              |
 | Simulator        | `/simulator`                 | Per-position hypothetical % moves on a basket or on a wallet's current weights.                                                                                                      |
 | Saved / creators | `/saved`, `/creator/$id`     | Baskets saved in this browser; baskets grouped by creator name.                                                                                                                      |
 | JSON API         | `GET /api/portfolio/$wallet` | The same portfolio snapshot as JSON (`Cache-Control: no-store`).                                                                                                                     |
@@ -58,9 +59,11 @@ Browser (React)                         Server (TanStack Start / Nitro)         
 routes/* ──useCatalog()──▶ root loader ─▶ getPreStocksFn ─▶ prestocks-api.ts ───────────▶ prestocks.com/api/prestocks
 routes/portfolio ─────────▶ getPortfolioFn (POST) ─▶ portfolio-load.server.ts
                                               │   ├─ fetchPreStocks()     (catalog, 60 s cache)
-                                              │   ├─ helius.server.ts     ─ Helius DAS / Enhanced Tx ─▶ mainnet.helius-rpc.com
+                                              │   ├─ helius.server.ts     ─ DAS balances, per-token-account ─▶ mainnet.helius-rpc.com
+                                              │   │    │                    signatures + Enhanced Tx parse
                                               │   │    └─ fallback ─▶ solana-rpc.server.ts ──────────▶ public Solana RPC
-                                              │   ├─ helius-history.ts    (parse tx → PreStock movements)
+                                              │   ├─ token-accounts.ts    (PreStock token accounts, ATA derivation, budget)
+                                              │   ├─ helius-history.ts    (parse tx → PreStock movements, fee-aware)
                                               │   └─ portfolio.ts + cost-basis.ts (pure snapshot + average cost)
                                               ▼
                                          PortfolioResponse
@@ -92,8 +95,8 @@ See [`docs/architecture.md`](docs/architecture.md) for module-level detail.
 1. **Validate** the address: base58, decodes to exactly 32 bytes (`src/lib/solana-address.ts`). Invalid input returns `INVALID_WALLET` without any network call.
 2. **Catalog**: `fetchPreStocks()` (60 s in-memory cache). Failure → `PRESTOCKS_REQUEST_FAILED`; nothing is guessed.
 3. **Balances**: `fetchWalletFungibles(wallet, { mints })` — Helius first when configured, otherwise public RPC (see below). 30 s per-wallet cache.
-4. **History**: `fetchWalletHistory(wallet)` → `parsePreStockTransactions()`. History failure does _not_ fail the request; it sets `historyStatus: "unavailable"` so holdings still render while cost basis is shown as unavailable.
-5. **Snapshot**: `buildPortfolioSnapshot()` (pure) matches balances to the catalog by mint, prices them, computes allocation, runs average cost, and assembles totals.
+4. **History**: `fetchWalletHistory(wallet, { mints })` reads history **per PreStock token account**, not the wallet's whole transaction history (see [PreStock token-account history](#prestock-token-account-history)), then `parsePreStockTransactions()` turns it into PreStock movements. Mints whose history could not be read completely are returned as `truncatedMints`. History failure does _not_ fail the request; it sets `historyStatus: "unavailable"` so holdings still render while cost basis is shown as unavailable.
+5. **Snapshot**: `buildPortfolioSnapshot()` (pure) matches balances to the catalog by mint, prices them, computes allocation, runs average cost (withholding cost basis for any mint in `truncatedMints`), and assembles totals.
 
 Every derived number is either computed from real inputs or `null`:
 
@@ -104,11 +107,11 @@ Every derived number is either computed from real inputs or `null`:
 | `value`         | `quantity × tokenPrice`                  | price unavailable                                                 |
 | `allocation`    | `value ÷ Σ priced values`                | price unavailable                                                 |
 | `totalValue`    | Σ priced values                          | `unpricedCount > 0` → UI labels the total _Partial_               |
-| `costBasis`     | average cost of verified acquisitions    | history missing, truncated, or includes unknown-cost tokens       |
+| `costBasis`     | average cost of verified acquisitions    | that mint's history is missing/truncated, or includes unknown-cost tokens |
 | `unrealizedPnl` | `value − costBasis`                      | either side unavailable                                           |
 | `realizedPnl`   | sales matched to average cost            | any sale lacks proceeds or fully-known cost; history not complete |
 
-The UI (`src/routes/portfolio.tsx`) renders `null` as **Unavailable**, marks totals with unpriced holdings as **Partial**, and adds a short status label under each summary figure (e.g. "1 of 2 verified", "No sales", "Missing prices") from the pure `summaryNotes()` helper.
+The UI (`src/routes/portfolio.tsx`) marks totals with unpriced holdings as **Partial**. The summary shows a figure only when data supports it (`summaryFigures()`, pure): a complete total when every position is covered, otherwise the sum over verified positions labelled **Partial · n of m positions**. Metrics with no supporting data collapse into one muted "Not available: …" line with the reason from `summaryNotes()` (e.g. "0 of 2 verified", "needs full history"), instead of large "Unavailable" boxes. Per-position cells in the holdings table still read _Unavailable_.
 
 ## PreStocks API
 
@@ -125,11 +128,23 @@ The UI (`src/routes/portfolio.tsx`) renders `null` as **Unavailable**, marks tot
 | Step     | With `HELIUS_API_KEY`                                                                                                                                     | Without it / on Helius failure                                                                                                       |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Balances | DAS `getAssetsByOwner` (fungibles, paged, ≤ 5 × 1000), falling back to `searchAssets` (`tokenType: fungible`)                                             | `getTokenAccountsByOwner` for the Token-2022 program on public RPC, filtered to catalog mints                                        |
-| History  | Enhanced Transactions `GET /v0/addresses/{wallet}/transactions` (≤ 6 pages × 100, `token-accounts=balanceChanged`); on 404 retries the `api-mainnet` host | `getSignaturesForAddress` (last 40) + `getTransaction` (jsonParsed), converted to the enhanced shape by `fromParsedRpcTransaction()` |
+| Token accounts | `getTokenAccountsByOwner` (Token-2022, jsonParsed, any balance) on Helius RPC                                                                     | Same call on public RPC                                                                                                              |
+| History  | Per PreStock token account: `getSignaturesForAddress` (≤ 1,000), then Enhanced Transactions `POST /v0/transactions` (batches of 100, 429 retry/back-off) | Per token account: `getSignaturesForAddress` (≤ 100) + `getTransaction` (jsonParsed, ≤ 80 in total), converted by `fromParsedRpcTransaction()` |
 
 Public RPC (`src/lib/solana-rpc.server.ts`) rotates between `api.mainnet-beta.solana.com` and `solana-rpc.publicnode.com`, uses a 12 s timeout, and retries rate-limited responses up to 3 times with linear back-off. Helius auth errors (401/403) surface as `HELIUS_AUTH_ERROR`; any `api-key=` fragment in upstream error text is redacted before it can reach a response.
 
-History is marked **partial** when the page/signature limit is hit, so cost basis is never reported as complete on a truncated history.
+History is marked **partial** per mint when a limit is hit, so that mint's cost basis is never reported on a truncated history. Helius RPC calls retry HTTP 429 with back-off before any fallback.
+
+## PreStock token-account history
+
+Busy wallets (bots, market makers, aggregator users) can have thousands of unrelated transactions, which used to push PreStock trades past a wallet-wide cap. History is now scoped to the accounts that can actually hold PreStocks (`src/lib/token-accounts.ts`, `src/lib/helius.server.ts`):
+
+1. **Accounts**: every open Token-2022 account the wallet owns for a catalog mint (zero-balance accounts included), plus the **derived associated token account** for each catalog mint (`associatedTokenAddress()`, a pure `findProgramAddress` with an ed25519 on-curve check). The derived ATA picks up history of a closed account, e.g. a fully exited position, so realized P&L is not silently missed.
+2. **Signatures**: `getSignaturesForAddress` per account (≤ 1,000). Accounts that never existed return nothing and cost nothing further.
+3. **Budget**: `selectSignatures()` parses at most 1,500 unique signatures per wallet, smallest accounts first. An account over 1,000 signatures or over the remaining budget contributes only its newest 100 (for the transaction list) and its mint is marked truncated → no cost basis for that position.
+4. **Parse**: Helius Enhanced Transactions in batches of 100; duplicates across accounts are dropped (`mergeBySignature()`).
+
+Public-RPC fallback follows the same account list with tighter limits (100 signatures per account, 80 parsed transactions in total).
 
 ## Asset matching
 
@@ -146,9 +161,11 @@ Method: **average cost** (`src/lib/cost-basis.ts`), per mint, processed chronolo
 
 Transaction classification (`src/lib/helius-history.ts`):
 
-- **Buy / Acquisition** — a swap where exactly one PreStock comes in and USDC/USDT (the only assets valued, at $1) goes out. Cost = stablecoins paid.
-- **Sell / Disposal** — a swap where exactly one PreStock goes out and USDC/USDT comes in. Proceeds = stablecoins received.
-- **Transfer in / out** — everything else, including swaps against non-stable assets and multi-PreStock swaps (USD cannot be attributed honestly).
+Movements are measured from **balance deltas** (`accountData[].tokenBalanceChanges` in Helius Enhanced Transactions; pre/post token balances on public RPC), not from transfer instructions. PreStock mints use the Token-2022 **transfer-fee** extension (observed on mainnet: 1%, then 3%), so the transfer amount overstates what a buyer receives; using transfer amounts made on-chain quantity never match history and cost basis never resolve.
+
+- **Buy / Acquisition** — for this wallet, in one transaction: exactly one PreStock nets in, USDC/USDT (the only assets valued, at $1) nets out, every other token leg nets to zero (e.g. a wrapped-SOL hop inside an aggregator route), and native SOL spent is at most 0.02 SOL (fees and account rent). Cost = stablecoins paid, so the transfer fee is part of cost. The Helius type label is not required — aggregator routes are often labelled `TRANSFER` or `UNKNOWN`.
+- **Sell / Disposal** — the mirror image: exactly one PreStock nets out, stablecoins net in, no other net legs, and at most 0.02 SOL received. Proceeds = stablecoins received.
+- **Transfer in / out** — everything else, including trades paid in SOL or other tokens and multi-PreStock swaps (USD cannot be attributed honestly without a historical price source).
 
 Accounting rules:
 
@@ -167,6 +184,7 @@ Accounting rules:
 - Allocation rules: ≥ 2 PreStocks; no empty or duplicate ids (after alias canonicalization); every allocation finite and > 0; total within **±0.05** of 100% (absorbs float noise like 33.3 + 33.3 + 33.4).
 - **Publishing publishes a strategy idea inside PreLaunch only.** It creates no token, liquidity, order, or blockchain transaction.
 - Views and saves are counted locally in this browser; they are not network-wide statistics.
+- **Token vs mark premium** (`src/lib/premium.ts`): per PreStock, `(tokenPrice − markPrice) ÷ markPrice × 100` from the catalog (null unless both prices are positive). Per basket, the allocation-weighted average `Σ(wᵢ × premiumᵢ) ÷ Σwᵢ` over constituents with both prices, with "n of m" shown when some are missing. Shown on basket cards, the basket header and allocation table, the home hero, and the home token-vs-mark table. Neutral styling; it is a catalog observation, not a signal.
 - Share links work for catalog baskets. Browser-published baskets exist only in the publishing browser, so the share button explains that instead of producing a dead link.
 
 ## Portfolio vs basket comparison
@@ -205,8 +223,10 @@ See [`SECURITY.md`](SECURITY.md) for reporting and scope.
 
 ## Limitations
 
-- Cost basis only covers stablecoin (USDC/USDT) swaps. Swaps against SOL or other tokens, OTC transfers, and airdrops are treated as transfers with unknown cost, so affected positions show _Cost basis unavailable_.
-- History depth is bounded (Helius: 600 transactions; public RPC: last 40 signatures). Older activity marks history as partial.
+- Cost basis only covers stablecoin (USDC/USDT) trades. PreStocks bought with SOL (e.g. SOL-paired AMM pools) or other tokens, OTC transfers, and airdrops are unknown-cost, so affected positions show cost basis as unavailable. Pricing SOL legs would need a historical SOL/USD source, which PreLaunch does not use.
+- History depth is bounded per PreStock token account (Helius: 1,000 signatures per account, 1,500 parsed per wallet; public RPC: 100 per account, 80 parsed). Liquidity pools and market-making wallets usually exceed this and show history as partial.
+- The sample wallet is an arbitrary public address observed on-chain; its holdings and P&L change whenever its owner trades.
+- Token vs mark figures are catalog values (`tokenPrice`, `markPrice`); the basket figure is an allocation-weighted average of constituent premiums, not a NAV or tradable basket price.
 - Prices are the catalog's current `tokenPrice`; there is no historical price series and no charts of performance.
 - Baskets, saves and view counts are per-browser (`localStorage`). There is no account system or shared backend for baskets.
 - Categories come from a static PreLaunch symbol map, not the PreStocks API; unknown symbols default to "Infrastructure".
@@ -237,7 +257,7 @@ npm test            # node --test on src/**/*.test.ts
 npm run build       # vite build (Nitro, Vercel preset), then db:migrate (no-op: there is no migrations/ directory)
 ```
 
-Unit tests cover wallet validation, mint matching, price-unavailable handling, transaction parsing, average cost, comparison, basket allocation validation, discovery/ranking and the simulator math.
+Unit tests cover wallet validation, mint matching, price-unavailable handling, transaction parsing (including transfer-fee balance deltas and aggregator routes), ATA derivation against real mainnet accounts, the history signature budget, per-mint truncation, summary figures, average cost, token-vs-mark premium, comparison, basket allocation validation, discovery/ranking and the simulator math.
 
 `npm run test:template` runs the kept hosting scripts' own tests (`scripts/*.test.mjs`: env wrapper, PWA/OG head, migration plan). Several expect platform-provided files (`.grok/…`, `public/__grok/…`) that are not in this repository, so they are not part of the CI gate.
 
@@ -271,7 +291,10 @@ src/
     prestocks-api.ts      Catalog fetch + normalization
     helius.server.ts      Helius balances/history (server-only)
     solana-rpc.server.ts  Public RPC fallback (server-only)
-    helius-history.ts     Transaction → PreStock movement parsing
+    helius-history.ts     Transaction → PreStock movement parsing (balance deltas, fee-aware)
+    token-accounts.ts     PreStock token accounts, ATA derivation, signature budget (pure)
+    premium.ts            Token vs mark premium, basket-weighted premium (pure)
+    sample-wallet.ts      The public sample wallet address (one constant)
     portfolio.ts          Mint matching, pricing, snapshot, summary notes (pure)
     cost-basis.ts         Average-cost engine (pure)
     compare.ts            Wallet vs basket (pure)
