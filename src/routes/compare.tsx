@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { FlaskConical } from "lucide-react";
 import { AllocationBar } from "@/components/allocation-bar";
+import { SampleWalletHint } from "@/components/sample-wallet";
 import { StockAvatar } from "@/components/stock-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import { comparePortfolioToBasket, type CompareRow, type CompareSide } from "@/l
 import { round1, formatPrice } from "@/lib/format";
 import { getPortfolioFn } from "@/lib/portfolio.functions";
 import { cachePortfolioSnapshot, readCachedPortfolio } from "@/lib/portfolio-cache";
+import { SAMPLE_WALLET } from "@/lib/sample-wallet";
 import { pageHead } from "@/lib/seo";
 import { isSolanaAddress } from "@/lib/solana-address";
 import type { Basket } from "@/lib/types";
@@ -227,6 +229,16 @@ function ComparePage() {
           <p className="mt-2 type-meta">
             Live PreStocks weights from this wallet. Not a trade.
           </p>
+          {wallet !== SAMPLE_WALLET ? (
+            <SampleWalletHint
+              onUse={(next) => {
+                setWalletInput(next);
+                void navigate({
+                  search: { wallet: next, basket: basketId || undefined },
+                });
+              }}
+            />
+          ) : null}
         </form>
 
         <div>

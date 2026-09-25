@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildPortfolioSnapshot, matchPreStockHoldings, summaryNotes } from "./portfolio.ts";
+import { buildPortfolioSnapshot, matchPreStockHoldings, summaryFigures, summaryNotes } from "./portfolio.ts";
 import { isSolanaAddress } from "./solana-address.ts";
 import type { PreStock } from "./types.ts";
 
@@ -309,5 +309,75 @@ describe("parseTokenAccount", () => {
       },
     });
     assert.equal(parsed, null);
+  });
+});
+
+describe("per-mint history truncation and summary figures", () => {
+  const wallet = "11111111111111111111111111111111";
+  const buy = (mint: string, symbol: string, quantity: number, valueUsd: number) => ({
+    walletAddress: wallet,
+    signature: `buy-${symbol}`,
+    timestamp: "2026-01-01T00:00:00.000Z",
+    mint,
+    symbol,
+    name: symbol,
+    quantity,
+    direction: "in" as const,
+    type: "buy" as const,
+    typeLabel: "Buy / Acquisition",
+    unitPriceUsd: valueUsd / quantity,
+    valueUsd,
+    costBasisEligible: true,
+  });
+
+  it("withholds cost basis for a mint whose token-account history is truncated", () => {
+    const snapshot = buildPortfolioSnapshot(
+      wallet,
+      [
+        { mint: openaiMint, quantity: 2 },
+        { mint: spaceMint, quantity: 4 },
+      ],
+      catalog,
+      undefined,
+      {
+        status: "partial",
+        truncated: true,
+        truncatedMints: [spaceMint],
+        transactions: [buy(openaiMint, "OPENAI", 2, 160), buy(spaceMint, "SPACEX", 4, 120)],
+      },
+    );
+    const openai = snapshot.positions.find((item) => item.symbol === "OPENAI");
+    const spacex = snapshot.positions.find((item) => item.symbol === "SPACEX");
+    assert.equal(openai?.costBasis, 160);
+    assert.equal(openai?.unrealizedPnl, 40);
+    assert.equal(spacex?.costBasis, null);
+    assert.equal(snapshot.totalCostBasis, null);
+    assert.equal(snapshot.realizedPnl, null);
+
+    const figures = summaryFigures(snapshot);
+    assert.deepEqual(figures.costBasis, { value: 160, partial: true, covered: 1, held: 2 });
+    assert.deepEqual(figures.unrealized, { value: 40, partial: true, covered: 1, held: 2 });
+    assert.equal(figures.realized, null);
+  });
+
+  it("uses complete totals when every position is covered", () => {
+    const snapshot = buildPortfolioSnapshot(wallet, [{ mint: openaiMint, quantity: 2 }], catalog, undefined, {
+      status: "ok",
+      transactions: [buy(openaiMint, "OPENAI", 2, 160)],
+    });
+    const figures = summaryFigures(snapshot);
+    assert.deepEqual(figures.costBasis, { value: 160, partial: false, covered: 1, held: 1 });
+    assert.deepEqual(figures.unrealized, { value: 40, partial: false, covered: 1, held: 1 });
+    assert.deepEqual(figures.realized, { value: 0, partial: false, covered: 1, held: 1 });
+  });
+
+  it("returns null figures when nothing is verified", () => {
+    const snapshot = buildPortfolioSnapshot(wallet, [{ mint: openaiMint, quantity: 2 }], catalog, undefined, {
+      status: "ok",
+      transactions: [],
+    });
+    const figures = summaryFigures(snapshot);
+    assert.equal(figures.costBasis, null);
+    assert.equal(figures.unrealized, null);
   });
 });

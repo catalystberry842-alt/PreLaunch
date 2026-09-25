@@ -193,3 +193,54 @@ export function summaryNotes(snapshot: PortfolioSnapshot) {
 
   return { history, costBasis, unrealized, realized };
 }
+
+export type SummaryFigure = {
+  value: number;
+  /** True when the figure covers only some positions (see `covered`). */
+  partial: boolean;
+  covered: number;
+  held: number;
+};
+
+/**
+ * Figures for the portfolio summary. A complete total is used when the
+ * snapshot has one; otherwise the sum over positions whose cost basis is
+ * verified is returned as a labelled partial figure. `null` means no
+ * position supports the metric at all.
+ */
+export function summaryFigures(snapshot: PortfolioSnapshot) {
+  const held = snapshot.positions.length;
+  const covered = snapshot.positions.filter((item) => item.costBasis != null);
+  const coveredPriced = covered.filter((item) => item.unrealizedPnl != null);
+
+  const costBasis: SummaryFigure | null =
+    snapshot.totalCostBasis != null
+      ? { value: snapshot.totalCostBasis, partial: false, covered: held, held }
+      : covered.length > 0
+        ? {
+            value: round2(covered.reduce((sum, item) => sum + (item.costBasis ?? 0), 0)),
+            partial: true,
+            covered: covered.length,
+            held,
+          }
+        : null;
+
+  const unrealized: SummaryFigure | null =
+    snapshot.unrealizedPnl != null
+      ? { value: snapshot.unrealizedPnl, partial: false, covered: held, held }
+      : coveredPriced.length > 0
+        ? {
+            value: round2(coveredPriced.reduce((sum, item) => sum + (item.unrealizedPnl ?? 0), 0)),
+            partial: true,
+            covered: coveredPriced.length,
+            held,
+          }
+        : null;
+
+  const realized: SummaryFigure | null =
+    snapshot.realizedPnl != null
+      ? { value: snapshot.realizedPnl, partial: false, covered: held, held }
+      : null;
+
+  return { costBasis, unrealized, realized };
+}

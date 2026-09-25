@@ -4,6 +4,7 @@ import { Copy, ExternalLink, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { AllocationDonut } from "@/components/allocation-donut";
 import { EmptyState } from "@/components/empty-state";
+import { SampleWalletHint } from "@/components/sample-wallet";
 import { StockAvatar } from "@/components/stock-avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,7 +20,8 @@ import {
 import { baskets } from "@/lib/baskets";
 import { cachePortfolioSnapshot } from "@/lib/portfolio-cache";
 import { formatAddress, formatDate, formatPrice, formatQuantity, formatSignedUsd } from "@/lib/format";
-import { summaryNotes } from "@/lib/portfolio";
+import { summaryFigures, summaryNotes } from "@/lib/portfolio";
+import { SAMPLE_WALLET } from "@/lib/sample-wallet";
 import { getPortfolioFn } from "@/lib/portfolio.functions";
 import { pageHead } from "@/lib/seo";
 import { copyText } from "@/lib/share";
@@ -224,6 +226,15 @@ function PortfolioPage() {
             Enter a valid Solana wallet address
           </p>
         ) : null}
+        {snapshot?.wallet !== SAMPLE_WALLET ? (
+          <SampleWalletHint
+            onUse={(wallet) => {
+              setInput(wallet);
+              setInvalid(false);
+              void navigate({ search: { wallet } });
+            }}
+          />
+        ) : null}
       </form>
 
       {pending ? <LoadingState /> : null}
@@ -400,6 +411,26 @@ function Results({
 }) {
   const { positions, totalValue, fetchedAt, transactions } = snapshot;
   const notes = summaryNotes(snapshot);
+  const figures = summaryFigures(snapshot);
+  const metrics = [
+    { key: "costBasis", label: "Cost basis", figure: figures.costBasis, note: notes.costBasis },
+    { key: "unrealized", label: "Unrealized P&L", figure: figures.unrealized, note: notes.unrealized },
+    { key: "realized", label: "Realized P&L", figure: figures.realized, note: notes.realized },
+  ] as const;
+  const shown = metrics.flatMap((item) =>
+    item.figure
+      ? [
+          {
+            ...item,
+            figure: item.figure,
+            note: item.figure.partial
+              ? `Partial · ${item.figure.covered} of ${item.figure.held} positions`
+              : item.note,
+          },
+        ]
+      : [],
+  );
+  const missing = metrics.filter((item) => !item.figure);
   const pricedPositions = positions.filter((item) => item.allocation != null);
 
   return (
@@ -421,18 +452,32 @@ function Results({
             </span>
           ) : null}
         </p>
-        <dl className="mt-6 grid gap-4 sm:grid-cols-3">
-          <SummaryFigure label="Cost basis" note={notes.costBasis}>
-            <MaybeUsd value={snapshot.totalCostBasis} />
-          </SummaryFigure>
-          <SummaryFigure label="Unrealized P&L" note={notes.unrealized}>
-            <PnlText value={snapshot.unrealizedPnl} />
-          </SummaryFigure>
-          <SummaryFigure label="Realized P&L" note={notes.realized}>
-            <PnlText value={snapshot.realizedPnl} />
-          </SummaryFigure>
-        </dl>
-        <p className="mt-4 type-meta">
+        {shown.length > 0 ? (
+          <dl className="mt-6 grid gap-4 sm:grid-cols-3">
+            {shown.map((item) => (
+              <SummaryFigure key={item.key} label={item.label} note={item.note}>
+                {item.key === "costBasis" ? (
+                  formatPrice(item.figure.value)
+                ) : (
+                  <PnlText value={item.figure.value} />
+                )}
+              </SummaryFigure>
+            ))}
+          </dl>
+        ) : null}
+        {missing.length > 0 ? (
+          <p className="mt-4 type-meta">
+            <span className="text-foreground/80">Not available:</span>{" "}
+            {missing.map((item, index) => (
+              <span key={item.key}>
+                {index > 0 ? " · " : null}
+                {item.label}
+                {item.note ? ` (${item.note.toLowerCase()})` : null}
+              </span>
+            ))}
+          </p>
+        ) : null}
+        <p className="mt-2 type-meta">
           Average cost · {notes.history} · Updated {formatFetchedAt(fetchedAt)}
         </p>
         <Button type="button" variant="outline" className="mt-4" onClick={onRefresh}>
