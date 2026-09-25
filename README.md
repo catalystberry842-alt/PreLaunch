@@ -6,7 +6,7 @@ PreLaunch lets you discover and research PreStocks, track the PreStocks held by 
 
 > **Read-only by design.** PreLaunch never connects a wallet, never asks for a private key or seed phrase, never signs or sends a transaction, and has no trading, swap, order, or custody functionality. Publishing a basket publishes a _strategy idea inside PreLaunch_ — it does not create a token, liquidity, an order, or a blockchain transaction.
 
-Demo: https://prelaunched.grok.me/
+Demo: https://pre-launched.vercel.app
 
 ---
 
@@ -27,7 +27,7 @@ Demo: https://prelaunched.grok.me/
 - [Limitations](#limitations)
 - [Local development](#local-development)
 - [Testing and CI](#testing-and-ci)
-- [Hosting (grok.me)](#hosting-grokme)
+- [Hosting](#hosting)
 - [Repository structure](#repository-structure)
 
 Deeper docs: [`docs/architecture.md`](docs/architecture.md) · [`docs/data-model.md`](docs/data-model.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`SECURITY.md`](SECURITY.md)
@@ -79,7 +79,7 @@ See [`docs/architecture.md`](docs/architecture.md) for module-level detail.
 
 - React 19, TanStack Start / Router, TypeScript (strict)
 - Tailwind CSS v4, Radix UI primitives, lucide icons, Recharts (allocation donut only)
-- Nitro (Vercel preset) for the server bundle; Grok app-builder hosting wiring for [grok.me](#hosting-grokme)
+- Nitro (Vercel preset) for the server bundle; Grok app-builder hosting wiring (see [Hosting](#hosting))
 - PreStocks public catalog API
 - Optional [Helius](https://www.helius.dev/) (DAS + Enhanced Transactions), public Solana JSON-RPC fallback
 - Tests: Node's built-in test runner with `--experimental-strip-types` (no extra test framework)
@@ -243,9 +243,11 @@ Unit tests cover wallet validation, mint matching, price-unavailable handling, t
 
 GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, lint, test and build on Node 22 for pushes and pull requests to `main`. Dependabot checks npm and GitHub Actions weekly.
 
-## Hosting (grok.me)
+## Hosting
 
-The live app at https://prelaunched.grok.me/ is built and deployed by the Grok app builder from this repository. The template wiring it relies on is kept as-is:
+The live demo is https://pre-launched.vercel.app, deployed on Vercel from this repository. Vercel's GitHub integration builds every push to `main` and serves it on that address. The build runs `npm run build` on Node 22; Nitro's Vercel preset writes `.vercel/output`, and the `db:migrate` step skips because `DATABASE_URL` is unset. `HELIUS_API_KEY` is set in the Vercel project as a server-only (sensitive) environment variable. Without it, the portfolio falls back to public Solana RPC with limited history.
+
+An earlier copy was published through the Grok app builder at https://prelaunched.grok.me/. That host does not rebuild on GitHub pushes, so it can lag behind `main`. The template wiring the app builder relies on is kept as-is:
 
 | Piece                                                                     | Role                                                                                                                                            |
 | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
