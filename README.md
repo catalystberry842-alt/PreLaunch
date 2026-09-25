@@ -2,11 +2,25 @@
 
 **A read-only portfolio and strategy layer for [PreStocks](https://prestocks.com)** — tokenized, pre-IPO economic exposure on Solana.
 
+**Demo:** https://pre-launched.vercel.app
+
+**Try it:** open [/portfolio](https://pre-launched.vercel.app/portfolio) and click **Try a sample wallet** — a public Solana wallet that holds five PreStocks, with average-cost basis and unrealized P&L resolved from its on-chain history.
+
+| Home — live token price vs mark | Portfolio — sample wallet with cost basis |
+| --- | --- |
+| ![Home page with the live token price vs mark table](docs/screenshots/home.png) | ![Portfolio of the sample wallet with value, cost basis and unrealized P&L](docs/screenshots/portfolio.png) |
+| **Compare — sample wallet vs AI Infrastructure** | **Basket — weighted token vs mark** |
+| ![Compare page: sample wallet against the AI Infrastructure basket](docs/screenshots/compare.png) | ![AI Infrastructure basket page with the weighted token vs mark stat](docs/screenshots/basket.png) |
+
+<p><img src="docs/screenshots/mobile-portfolio.png" alt="Portfolio on a 390px mobile screen" width="240" /></p>
+
+Silent demo (38 s, home → sample wallet portfolio → compare → simulator): [docs/screenshots/demo.mp4](docs/screenshots/demo.mp4)
+
+Screenshots were captured from the live site on Sep 25, 2026; prices and P&L change with the market.
+
 PreLaunch lets you discover and research PreStocks, track the PreStocks held by any Solana wallet, see value / allocation / cost basis where on-chain history supports it, build allocation-based PreStock baskets, compare a wallet against a basket, and run explicitly hypothetical what-if scenarios.
 
 > **Read-only by design.** PreLaunch never connects a wallet, never asks for a private key or seed phrase, never signs or sends a transaction, and has no trading, swap, order, or custody functionality. Publishing a basket publishes a _strategy idea inside PreLaunch_ — it does not create a token, liquidity, an order, or a blockchain transaction.
-
-Demo: https://pre-launched.vercel.app
 
 ---
 
@@ -307,7 +321,7 @@ src/
   data/mock-baskets.ts    Seed strategies
 server/                   Nitro middleware: Grok PWA/OG head (deployed)
 scripts/                  Grok hosting wiring: env wrapper, PWA/OG plugin, migrate step
-docs/                     Architecture and data model
+docs/                     Architecture, data model, README screenshots and demo video
 ```
 
 ---

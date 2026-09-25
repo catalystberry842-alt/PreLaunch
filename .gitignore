@@ -13,6 +13,7 @@ dist
 
 .vercel
 screenshots
+!docs/screenshots/
 artifacts
 
 .node_modules.lock
