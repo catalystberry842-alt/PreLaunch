@@ -65,11 +65,12 @@ const basket: Basket = {
 };
 
 function snapshot(positions: PortfolioSnapshot["positions"]): PortfolioSnapshot {
-  const totalValue = positions.reduce((sum, item) => sum + item.value, 0);
+  const totalValue = positions.reduce((sum, item) => sum + (item.value ?? 0), 0);
   return {
     wallet: "Wallet1111111111111111111111111111111111111",
     fetchedAt: "2026-01-01T00:00:00.000Z",
     totalValue,
+    unpricedCount: positions.filter((item) => item.value == null).length,
     totalCostBasis: null,
     unrealizedPnl: null,
     realizedPnl: null,
@@ -84,7 +85,7 @@ function snapshot(positions: PortfolioSnapshot["positions"]): PortfolioSnapshot 
 
 function position(
   symbol: string,
-  value: number,
+  value: number | null,
 ): PortfolioSnapshot["positions"][number] {
   return {
     symbol,
@@ -139,6 +140,16 @@ describe("comparePortfolioToBasket", () => {
     );
   });
 
+  it("drops unpriced holdings that are not in the basket", () => {
+    const result = comparePortfolioToBasket(
+      snapshot([position("OPENAI", 100), position("KALSHI", null)]),
+      basket,
+      [openai, anthropic, figure],
+    );
+    assert.equal(result.rows.some((row) => row.symbol === "KALSHI"), false);
+    assert.equal(result.portfolioOnly.length, 0);
+  });
+
   it("does not invent a basket dollar value or performance", () => {
     const result = comparePortfolioToBasket(
       snapshot([position("OPENAI", 100)]),
@@ -162,5 +173,15 @@ describe("portfolioHoldingsFromSnapshot", () => {
     assert.equal(holdings[0]?.allocation, 25);
     assert.equal(holdings[1]?.allocation, 75);
     assert.equal(holdings[0]?.stock?.id, "OPENAI");
+  });
+
+  it("excludes holdings without a current price instead of weighting them at 0%", () => {
+    const holdings = portfolioHoldingsFromSnapshot(
+      snapshot([position("OPENAI", 250), position("ANTHROPIC", null)]),
+      [openai, anthropic],
+    );
+    assert.equal(holdings.length, 1);
+    assert.equal(holdings[0]?.preStockId, "OPENAI");
+    assert.equal(holdings[0]?.allocation, 100);
   });
 });

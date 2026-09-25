@@ -15,7 +15,7 @@ export const MOCK_BASKETS: Basket[] = [
     description:
       "A basket focused on companies building the infrastructure behind the next generation of AI",
     thesis:
-      "AI infrastructure is becoming one of the most important layers of the technology stack. This basket focuses on OpenAI and Anthropic as model-lab exposure, with Figure AI as a physical-systems sleeve. It is a thematic structure, not a forecast.",
+      "AI infrastructure is becoming one of the most important layers of the technology stack. This basket focuses on OpenAI and Anthropic as model-lab exposure, with Figure AI as a physical-systems position. It is a thematic structure, not a forecast.",
     constituents: [
       { preStockId: "OPENAI", allocation: 40 },
       { preStockId: "ANTHROPIC", allocation: 35 },
@@ -57,7 +57,7 @@ export const MOCK_BASKETS: Basket[] = [
     description:
       "A basket focused on companies reshaping financial infrastructure",
     thesis:
-      "Event markets are a distinct layer of financial infrastructure. Kalshi is the regulated sleeve; Polymarket is the crypto-native overlay. The book is split to compare two market designs — a feature of the thesis, not a forecast.",
+      "Event markets are a distinct layer of financial infrastructure. Kalshi is the regulated leg; Polymarket is the crypto-native overlay. The book is split to compare two market designs — a feature of the thesis, not a forecast.",
     constituents: [
       { preStockId: "KALSHI", allocation: 55 },
       { preStockId: "POLYMARKET", allocation: 45 },
@@ -76,7 +76,7 @@ export const MOCK_BASKETS: Basket[] = [
     description:
       "Humanoids, neural interfaces, and autonomy packaged as a physical-AI theme",
     thesis:
-      "If intelligence moves into the physical world, the relevant names are not only labs. This basket pairs a humanoid core with a brain-computer interface sleeve and a defense-autonomy satellite — a structure meant to be researched and simulated, not a tradable product from this page.",
+      "If intelligence moves into the physical world, the relevant names are not only labs. This basket pairs a humanoid core with a brain-computer interface position and a defense-autonomy satellite — a structure meant to be researched and simulated, not a tradable product from this page.",
     constituents: [
       { preStockId: "FIGUREAI", allocation: 50 },
       { preStockId: "NEURALINK", allocation: 35 },
@@ -96,7 +96,7 @@ export const MOCK_BASKETS: Basket[] = [
     description:
       "Launch and adjacent defense names grouped as a space-economy book",
     thesis:
-      "Space baskets in this catalog are structurally concentrated: SpaceX is the gravitational center, and Anduril is included as an adjacent defense-tech sleeve. The point is to show how a space thesis still has to disclose single-name risk.",
+      "Space baskets in this catalog are structurally concentrated: SpaceX is the gravitational center, and Anduril is included as an adjacent defense-tech position. The point is to show how a space thesis still has to disclose single-name risk.",
     constituents: [
       { preStockId: "SPACEX", allocation: 75 },
       { preStockId: "ANDURIL", allocation: 25 },
@@ -115,7 +115,7 @@ export const MOCK_BASKETS: Basket[] = [
     description:
       "Regulated and crypto-native event markets as a private fintech core",
     thesis:
-      "This book is a more even take on event-market infrastructure than a single-venue sleeve. Polymarket and Kalshi are weighted equally so concentration can be compared against Next-Gen Fintech.",
+      "This book is a more even take on event-market infrastructure than a single-venue position. Polymarket and Kalshi are weighted equally so concentration can be compared against Next-Gen Fintech.",
     constituents: [
       { preStockId: "POLYMARKET", allocation: 50 },
       { preStockId: "KALSHI", allocation: 50 },
@@ -134,7 +134,7 @@ export const MOCK_BASKETS: Basket[] = [
     description:
       "Model labs and physical AI grouped as an application-adjacent book",
     thesis:
-      "An application-layer thesis still needs a model reference. OpenAI is the core, Anthropic is the second lab, and Figure AI is the physical-world sleeve. Not a claim these names form a real index.",
+      "An application-layer thesis still needs a model reference. OpenAI is the core, Anthropic is the second lab, and Figure AI is the physical-world position. Not a claim these names form a real index.",
     constituents: [
       { preStockId: "OPENAI", allocation: 50 },
       { preStockId: "ANTHROPIC", allocation: 30 },
@@ -174,7 +174,7 @@ export const MOCK_BASKETS: Basket[] = [
     description:
       "Model labs, physical AI, defense autonomy, and launch as a five-name frontier book",
     thesis:
-      "A frontier stack is not a single lab. This book splits model-lab exposure across OpenAI and Anthropic, then adds Figure AI as a physical-systems sleeve, Anduril as autonomy, and SpaceX as launch infrastructure. Five names, 100% allocated — a structure for research and simulation, not a tradable index.",
+      "A frontier stack is not a single lab. This book splits model-lab exposure across OpenAI and Anthropic, then adds Figure AI as a physical-systems position, Anduril as autonomy, and SpaceX as launch infrastructure. Five names, 100% allocated — a structure for research and simulation, not a tradable index.",
     constituents: [
       { preStockId: "OPENAI", allocation: 25 },
       { preStockId: "ANTHROPIC", allocation: 20 },

@@ -1,5 +1,9 @@
+import { round1, round2 } from "./format.ts";
+
 export const AMOUNT_PRESETS = [100, 500, 1000, 5000, 10000] as const;
 export const SCENARIO_PRESETS = [-20, -10, 0, 10, 20] as const;
+/** Every simulation opens flat: no position moves until the user sets one. */
+export const DEFAULT_SCENARIO_PERCENT = 0;
 export const SCENARIO_MIN = -90;
 export const SCENARIO_MAX = 200;
 
@@ -18,19 +22,15 @@ export type AllocationStats = {
   isComplete: boolean;
 };
 
-export type ConstituentImpact = {
-  sleeve: number;
-  scenarioValue: number;
-  contribution: number;
+/** One position in a hypothetical scenario. All values are USD. */
+export type PositionOutcome = {
+  /** Share of the starting amount assigned to this position. */
+  startingValue: number;
+  /** Starting value after the hypothetical % move. */
+  resultingValue: number;
+  /** resultingValue − startingValue. */
+  pnl: number;
 };
-
-function round1(value: number) {
-  return Math.round(value * 10) / 10;
-}
-
-function round2(value: number) {
-  return Math.round(value * 100) / 100;
-}
 
 export function clampScenario(value: number) {
   if (!Number.isFinite(value)) return 0;
@@ -69,51 +69,69 @@ export function calculateScenarioValue(amount: number, scenarioPercent: number) 
   return round2(safeAmount * (1 + clampScenario(scenarioPercent) / 100));
 }
 
-export function calculateConstituentImpact(
+/**
+ * Starting value = amount × (allocation ÷ totalAllocation); resulting value =
+ * starting value × (1 + move ÷ 100). Allocations are normalized by
+ * `totalAllocation`, so a book that does not sum to exactly 100 still splits
+ * the full amount.
+ */
+export function calculatePositionOutcome(
   amount: number,
   allocation: number,
   scenarioPercent: number,
   totalAllocation = 100,
-): ConstituentImpact {
+): PositionOutcome {
   const total = totalAllocation > 0 ? totalAllocation : 0;
-  const weight = total > 0 ? allocation / total : 0;
-  const sleeve = round2(Math.max(0, Number.isFinite(amount) ? amount : 0) * weight);
-  const scenarioValue = calculateScenarioValue(sleeve, scenarioPercent);
+  const weight = total > 0 && allocation > 0 ? allocation / total : 0;
+  const startingValue = round2(
+    Math.max(0, Number.isFinite(amount) ? amount : 0) * weight,
+  );
+  const resultingValue = calculateScenarioValue(startingValue, scenarioPercent);
   return {
-    sleeve,
-    scenarioValue,
-    contribution: round2(scenarioValue - sleeve),
+    startingValue,
+    resultingValue,
+    pnl: round2(resultingValue - startingValue),
   };
 }
 
-export type HoldingsScenarioResult = {
-  rows: ConstituentImpact[];
-  scenarioValue: number;
-  sleeve: number;
+export type ScenarioResult = {
+  rows: PositionOutcome[];
+  /** Sum of position starting values (equals the amount, up to cent rounding). */
+  startingValue: number;
+  /** Sum of position resulting values. */
+  finalValue: number;
+  /** finalValue − startingValue. */
   pnl: number;
+  /** pnl ÷ startingValue × 100, rounded to one decimal. */
   returnPercent: number;
 };
 
-/** Compose per-sleeve impacts from the existing average-cost-free what-if engine. */
+/**
+ * Pure what-if engine shared by the basket and portfolio simulators. Each
+ * position gets its own hypothetical % move. Hypothetical only: no prices,
+ * history or forecasts are involved.
+ */
 export function calculateHoldingsScenario(
   amount: number,
   items: { allocation: number; scenarioPercent: number }[],
-): HoldingsScenarioResult {
-  const total = items.reduce((sum, item) => sum + item.allocation, 0);
+): ScenarioResult {
+  const total = items.reduce(
+    (sum, item) => sum + (item.allocation > 0 ? item.allocation : 0),
+    0,
+  );
   const rows = items.map((item) =>
-    calculateConstituentImpact(
+    calculatePositionOutcome(
       amount,
       item.allocation,
       item.scenarioPercent,
       total > 0 ? total : 100,
     ),
   );
-  const scenarioValue = round2(rows.reduce((sum, row) => sum + row.scenarioValue, 0));
-  const sleeve = round2(rows.reduce((sum, row) => sum + row.sleeve, 0));
-  const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
-  const pnl = round2(scenarioValue - safeAmount);
-  const returnPercent = safeAmount > 0 ? round1((pnl / safeAmount) * 100) : 0;
-  return { rows, scenarioValue, sleeve, pnl, returnPercent };
+  const startingValue = round2(rows.reduce((sum, row) => sum + row.startingValue, 0));
+  const finalValue = round2(rows.reduce((sum, row) => sum + row.resultingValue, 0));
+  const pnl = round2(finalValue - startingValue);
+  const returnPercent = startingValue > 0 ? round1((pnl / startingValue) * 100) : 0;
+  return { rows, startingValue, finalValue, pnl, returnPercent };
 }
 
 export function calculateAllocationStats(

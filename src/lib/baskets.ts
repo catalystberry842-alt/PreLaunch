@@ -1,9 +1,6 @@
 import { MOCK_BASKETS } from "@/data/mock-baskets";
-import {
-  calculateTotalAllocation,
-  equalAllocations,
-  isValidAllocation,
-} from "@/lib/format";
+import { draftAllocationEntries, validateAllocations } from "@/lib/basket-validation";
+import { equalAllocations } from "@/lib/format";
 import { canonicalizePreStockId } from "@/lib/prestock-meta";
 import { prestocks } from "@/lib/prestocks";
 import { matchesBasketText } from "@/lib/ranking";
@@ -90,19 +87,28 @@ export function matchesBasketQuery(basket: Basket, query: string) {
 
 function normalizeDraft(value: Partial<BasketDraft> | null): BasketDraft | null {
   if (!value) return null;
+  // Canonicalize and de-duplicate ids, and keep allocations only for selected
+  // ids so a restored draft can never carry stale weights into the total.
+  const selectedIds = Array.isArray(value.selectedIds)
+    ? [...new Set(value.selectedIds.map(canonicalizePreStockId).filter(Boolean))]
+    : [];
+  const rawAllocations = Object.fromEntries(
+    Object.entries(value.allocations ?? {}).map(([id, amount]) => [
+      canonicalizePreStockId(id),
+      amount,
+    ]),
+  );
+  const allocations: Record<string, number> = {};
+  for (const id of selectedIds) {
+    const amount = rawAllocations[id];
+    if (typeof amount === "number" && Number.isFinite(amount)) allocations[id] = amount;
+  }
   return {
     ...emptyDraft(),
     ...value,
     creator: value.creator?.trim() || DEFAULT_CREATOR,
-    selectedIds: Array.isArray(value.selectedIds)
-      ? value.selectedIds.map(canonicalizePreStockId)
-      : [],
-    allocations: Object.fromEntries(
-      Object.entries(value.allocations ?? {}).map(([id, amount]) => [
-        canonicalizePreStockId(id),
-        amount,
-      ]),
-    ),
+    selectedIds,
+    allocations,
     category: value.category ?? "AI",
   };
 }
@@ -142,27 +148,19 @@ export const baskets = {
     if (!draft.description.trim()) errors.push("Add a short description");
     if (!draft.category) errors.push("Choose a category");
     if (!draft.creator.trim()) errors.push("Add a creator");
-    if (draft.selectedIds.length < 2) errors.push("Add at least 2 PreStocks");
-    else {
-      const missingAllocation = draft.selectedIds.some(
-        (id) => draft.allocations[id] == null,
-      );
-      if (missingAllocation) {
-        errors.push("Give every PreStock an allocation");
-      }
-      const total = calculateTotalAllocation(draft.allocations);
-      if (total > 100) {
-        errors.push(
-          `Allocation total: ${total}%. ${Math.round((total - 100) * 10) / 10}% over 100%`,
-        );
-      } else if (!isValidAllocation(draft.allocations, draft.selectedIds)) {
-        const remaining = Math.round((100 - total) * 10) / 10;
-        errors.push(`Allocation total: ${total}%. ${remaining}% remaining`);
-      }
-    }
+    errors.push(
+      ...validateAllocations(
+        draftAllocationEntries(draft.selectedIds, draft.allocations),
+      ),
+    );
     if (!draft.thesis.trim()) errors.push("Add a thesis before publishing");
     return errors;
   },
+  /**
+   * Publish a strategy idea inside PreLaunch (this browser's localStorage).
+   * This does not create a token, liquidity, an order, or any blockchain
+   * transaction.
+   */
   publish(draft: BasketDraft) {
     const errors = this.validateDraft(draft);
     if (errors.length > 0) throw new Error(errors[0]);

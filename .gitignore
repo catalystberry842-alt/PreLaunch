@@ -1,11 +1,14 @@
+# Environment files: never commit secrets. Only the template is tracked.
 .env
-.env.local
-.env.*.local
+.env*
+!.env.example
+
 .DS_Store
 node_modules
 .output
 .vinxi
 .tanstack
+.nitro
 dist
 
 .vercel

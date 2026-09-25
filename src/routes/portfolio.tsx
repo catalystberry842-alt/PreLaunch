@@ -19,6 +19,7 @@ import {
 import { baskets } from "@/lib/baskets";
 import { cachePortfolioSnapshot } from "@/lib/portfolio-cache";
 import { formatAddress, formatCostBasis, formatDate, formatPrice, formatQuantity, formatSignedUsd } from "@/lib/format";
+import { summaryNotes } from "@/lib/portfolio";
 import { getPortfolioFn } from "@/lib/portfolio.functions";
 import { pageHead } from "@/lib/seo";
 import { copyText } from "@/lib/share";
@@ -360,6 +361,16 @@ function PnlText({ value }: { value: number | null }) {
   );
 }
 
+function Unavailable() {
+  return <span className="text-muted-foreground">Unavailable</span>;
+}
+
+/** USD amount, or an explicit "Unavailable" — never a placeholder number. */
+function MaybeUsd({ value }: { value: number | null | undefined }) {
+  if (value == null || !Number.isFinite(value)) return <Unavailable />;
+  return <>{formatPrice(value)}</>;
+}
+
 function explorerTxUrl(signature: string) {
   return `https://solscan.io/tx/${encodeURIComponent(signature)}`;
 }
@@ -372,34 +383,57 @@ function Results({
   onRefresh: () => void;
 }) {
   const { positions, totalValue, fetchedAt, transactions } = snapshot;
+  const notes = summaryNotes(snapshot);
+  const pricedPositions = positions.filter((item) => item.allocation != null);
 
   return (
     <div className="mt-10 space-y-8">
-      <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <p className="type-kicker">Portfolio summary</p>
+      <section
+        aria-labelledby="portfolio-summary"
+        className="rounded-2xl border border-border bg-card p-5 sm:p-6"
+      >
+        <h2 id="portfolio-summary" className="type-kicker">
+          Portfolio summary
+        </h2>
         <p className="mt-2 font-display text-4xl tabular-nums">{formatPrice(totalValue)}</p>
-        <p className="mt-1 type-meta">Total PreStocks value</p>
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <p className="mt-1 type-meta">
+          Total PreStocks value at current catalog prices · {positions.length} holding
+          {positions.length === 1 ? "" : "s"}
+        </p>
+        {snapshot.unpricedCount > 0 ? (
+          <p className="mt-1 type-meta text-foreground">
+            Partial: {snapshot.unpricedCount} holding
+            {snapshot.unpricedCount === 1 ? " has" : "s have"} no current catalog
+            price and {snapshot.unpricedCount === 1 ? "is" : "are"} excluded from
+            this total.
+          </p>
+        ) : null}
+        <dl className="mt-6 grid gap-4 sm:grid-cols-3">
           <div>
-            <p className="type-kicker">Total cost basis</p>
-            <p className="mt-1 font-display text-xl tabular-nums">
+            <dt className="type-kicker">Total cost basis</dt>
+            <dd className="mt-1 font-display text-xl tabular-nums">
               {formatCostBasis(snapshot.totalCostBasis)}
-            </p>
+            </dd>
+            <dd className="mt-1 type-meta">{notes.costBasis}</dd>
           </div>
           <div>
-            <p className="type-kicker">Unrealized P&L</p>
-            <p className="mt-1 font-display text-xl tabular-nums">
+            <dt className="type-kicker">Unrealized P&L</dt>
+            <dd className="mt-1 font-display text-xl tabular-nums">
               <PnlText value={snapshot.unrealizedPnl} />
-            </p>
+            </dd>
+            <dd className="mt-1 type-meta">{notes.unrealized}</dd>
           </div>
           <div>
-            <p className="type-kicker">Realized P&L</p>
-            <p className="mt-1 font-display text-xl tabular-nums">
+            <dt className="type-kicker">Realized P&L</dt>
+            <dd className="mt-1 font-display text-xl tabular-nums">
               <PnlText value={snapshot.realizedPnl} />
-            </p>
+            </dd>
+            <dd className="mt-1 type-meta">{notes.realized}</dd>
           </div>
-        </div>
-        <p className="mt-4 type-meta">Cost basis method: Average cost</p>
+        </dl>
+        <p className="mt-4 type-meta">
+          Cost basis method: Average cost · History: {notes.history}
+        </p>
         <p className="mt-1 type-meta">Last updated: {formatFetchedAt(fetchedAt)}</p>
         <Button type="button" variant="outline" className="mt-4" onClick={onRefresh}>
           <RefreshCw />
@@ -409,15 +443,16 @@ function Results({
 
       <CompareWithBasket wallet={snapshot.wallet} />
 
-      {positions.length > 0 ? (
+      {pricedPositions.length > 0 ? (
         <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
           <h2 className="type-card">Portfolio allocation</h2>
+          <p className="mt-1 type-meta">Share of priced PreStocks value.</p>
           <AllocationDonut
             className="mt-5"
-            segments={positions.map((item) => ({
+            segments={pricedPositions.map((item) => ({
               id: item.symbol,
               name: item.symbol,
-              allocation: item.allocation,
+              allocation: item.allocation ?? 0,
             }))}
           />
         </section>
@@ -433,16 +468,18 @@ function Results({
 
           <section className="hidden md:block">
             <div className="overflow-x-auto rounded-2xl border border-border">
-              <table className="w-full min-w-[56rem] text-left">
+              <table className="w-full min-w-[60rem] text-left">
+                <caption className="sr-only">PreStocks holdings</caption>
                 <thead>
                   <tr className="border-b border-border type-kicker">
-                    <th className="px-4 py-3 font-medium">Asset</th>
-                    <th className="px-4 py-3 text-right font-medium">Quantity</th>
-                    <th className="px-4 py-3 text-right font-medium">Price</th>
-                    <th className="px-4 py-3 text-right font-medium">Value</th>
-                    <th className="px-4 py-3 text-right font-medium">Cost basis</th>
-                    <th className="px-4 py-3 text-right font-medium">Unrealized P&L</th>
-                    <th className="px-4 py-3 text-right font-medium">P&L %</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Asset</th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">Quantity</th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">Current price</th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">Value</th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">Allocation</th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">Cost basis</th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">Unrealized P&L</th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">P&L %</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -467,22 +504,27 @@ function Results({
                         {formatQuantity(item.quantity)}
                       </td>
                       <td className="px-4 py-4 text-right tabular-nums">
-                        {formatPrice(item.tokenPrice)}
+                        <MaybeUsd value={item.tokenPrice} />
                       </td>
                       <td className="px-4 py-4 text-right tabular-nums">
-                        {formatPrice(item.value)}
+                        <MaybeUsd value={item.value} />
                       </td>
                       <td className="px-4 py-4 text-right tabular-nums">
-                        {item.costBasis == null
-                          ? "Cost basis unavailable"
-                          : formatPrice(item.costBasis)}
+                        {item.allocation == null ? (
+                          <Unavailable />
+                        ) : (
+                          `${item.allocation}%`
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-right tabular-nums">
+                        <MaybeUsd value={item.costBasis} />
                       </td>
                       <td className="px-4 py-4 text-right tabular-nums">
                         <PnlText value={item.unrealizedPnl} />
                       </td>
                       <td className="px-4 py-4 text-right tabular-nums">
                         {item.unrealizedPnlPercent == null ? (
-                          "—"
+                          <Unavailable />
                         ) : (
                           <span
                             className={
@@ -506,28 +548,6 @@ function Results({
           </section>
         </>
       ) : null}
-
-      <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <h2 className="type-card">Performance</h2>
-        <div className="mt-5 grid gap-4 sm:grid-cols-3">
-          <div>
-            <p className="type-kicker">Current value</p>
-            <p className="mt-1 font-display text-2xl tabular-nums">{formatPrice(totalValue)}</p>
-          </div>
-          <div>
-            <p className="type-kicker">Cost basis</p>
-            <p className="mt-1 font-display text-2xl tabular-nums">
-              {formatCostBasis(snapshot.totalCostBasis)}
-            </p>
-          </div>
-          <div>
-            <p className="type-kicker">P&L</p>
-            <p className="mt-1 font-display text-2xl tabular-nums">
-              <PnlText value={snapshot.unrealizedPnl} />
-            </p>
-          </div>
-        </div>
-      </section>
 
       <section>
         <div className="mb-4">
@@ -565,15 +585,16 @@ function Results({
             </div>
             <div className="hidden overflow-x-auto rounded-2xl border border-border md:block">
               <table className="w-full min-w-[48rem] text-left">
+                <caption className="sr-only">PreStocks transactions</caption>
                 <thead>
                   <tr className="border-b border-border type-kicker">
-                    <th className="px-4 py-3 font-medium">Date</th>
-                    <th className="px-4 py-3 font-medium">Asset</th>
-                    <th className="px-4 py-3 font-medium">Type</th>
-                    <th className="px-4 py-3 text-right font-medium">Quantity</th>
-                    <th className="px-4 py-3 text-right font-medium">Price</th>
-                    <th className="px-4 py-3 text-right font-medium">Value</th>
-                    <th className="px-4 py-3 font-medium">Transaction</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Date</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Asset</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Type</th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">Quantity</th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">Unit price</th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">Value</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Transaction</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -600,9 +621,10 @@ function Results({
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex min-h-11 items-center gap-1 text-sm hover:underline"
+                            aria-label={`View ${item.symbol} transaction on Solscan (opens in a new tab)`}
                           >
                             View
-                            <ExternalLink className="size-3.5" />
+                            <ExternalLink className="size-3.5" aria-hidden="true" />
                           </a>
                         ) : (
                           "—"
@@ -650,22 +672,27 @@ function PositionCard({
           </div>
         </Link>
       </div>
-      <p className="mt-4 type-body">{formatQuantity(position.quantity)} tokens</p>
+      <p className="mt-4 type-body">
+        {formatQuantity(position.quantity)} tokens
+        {position.allocation == null ? "" : ` · ${position.allocation}% of portfolio`}
+      </p>
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div>
-          <p className="type-kicker">Price</p>
-          <p className="mt-1 tabular-nums">{formatPrice(position.tokenPrice)}</p>
+          <p className="type-kicker">Current price</p>
+          <p className="mt-1 tabular-nums">
+            <MaybeUsd value={position.tokenPrice} />
+          </p>
         </div>
         <div>
           <p className="type-kicker">Value</p>
-          <p className="mt-1 tabular-nums">{formatPrice(position.value)}</p>
+          <p className="mt-1 tabular-nums">
+            <MaybeUsd value={position.value} />
+          </p>
         </div>
         <div>
           <p className="type-kicker">Cost basis</p>
           <p className="mt-1 tabular-nums">
-            {position.costBasis == null
-              ? "Cost basis unavailable"
-              : formatPrice(position.costBasis)}
+            <MaybeUsd value={position.costBasis} />
           </p>
         </div>
         <div>
@@ -719,9 +746,10 @@ function TxCard({ tx }: { tx: PortfolioSnapshot["transactions"][number] }) {
               target="_blank"
               rel="noreferrer"
               className="mt-1 inline-flex min-h-11 items-center gap-1 text-sm hover:underline"
+              aria-label={`View ${tx.symbol} transaction on Solscan (opens in a new tab)`}
             >
               View
-              <ExternalLink className="size-3.5" />
+              <ExternalLink className="size-3.5" aria-hidden="true" />
             </a>
           ) : (
             <p className="mt-1">—</p>

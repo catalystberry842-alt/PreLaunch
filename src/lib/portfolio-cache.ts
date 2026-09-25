@@ -1,6 +1,6 @@
 import type { PortfolioSnapshot } from "@/types/portfolio";
 
-const KEY = "prelaunch.portfolio.snapshot.v1";
+const KEY = "prelaunch.portfolio.snapshot.v2";
 
 export function cachePortfolioSnapshot(snapshot: PortfolioSnapshot) {
   if (typeof window === "undefined") return;
@@ -19,6 +19,7 @@ export function readCachedPortfolio(wallet: string): PortfolioSnapshot | null {
     const parsed = JSON.parse(raw) as PortfolioSnapshot;
     if (!parsed || parsed.wallet !== wallet) return null;
     if (!Array.isArray(parsed.positions)) return null;
+    if (typeof parsed.unpricedCount !== "number") return null;
     return parsed;
   } catch {
     return null;

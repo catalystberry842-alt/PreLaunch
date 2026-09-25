@@ -27,10 +27,13 @@ export const Route = createFileRoute("/api/portfolio/$wallet")({
                 unrealizedPnlPercent: item.unrealizedPnlPercent,
               })),
               totalValue: snapshot.totalValue,
+              unpricedCount: snapshot.unpricedCount,
               totalCostBasis: snapshot.totalCostBasis,
               unrealizedPnl: snapshot.unrealizedPnl,
               realizedPnl: snapshot.realizedPnl,
               costBasisMethod: snapshot.costBasisMethod,
+              historyStatus: snapshot.historyStatus,
+              historyTruncated: snapshot.historyTruncated,
               transactions: snapshot.transactions.map((item) => ({
                 walletAddress: item.walletAddress,
                 date: item.timestamp,
@@ -54,9 +57,7 @@ export const Route = createFileRoute("/api/portfolio/$wallet")({
             : result.error === "HELIUS_CONFIG_MISSING" ||
                 result.error === "HELIUS_AUTH_ERROR"
               ? 503
-              : result.code === "catalog"
-                ? 502
-                : 502;
+              : 502;
         return Response.json(
           {
             error: result.error,

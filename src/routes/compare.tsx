@@ -335,7 +335,7 @@ function ComparePage() {
                   segments={snapshot.positions.map((item) => ({
                     id: item.symbol,
                     allocation:
-                      comparison.portfolioValue > 0
+                      comparison.portfolioValue > 0 && item.value != null
                         ? (item.value / comparison.portfolioValue) * 100
                         : 0,
                   }))}

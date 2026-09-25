@@ -1,63 +1,62 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   AMOUNT_PRESETS,
+  DEFAULT_SCENARIO_PERCENT,
   SCENARIO_PRESETS,
-  calculateAllocationStats,
   calculateHoldingsScenario,
   parseScenarioInput,
 } from "@/lib/calculations";
-import { formatPercent, formatPrice } from "@/lib/format";
+import { formatPercent, formatPrice, formatSignedUsd } from "@/lib/format";
 import type { BasketHolding } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-function formatSignedMoney(value: number) {
-  const body = formatPrice(Math.abs(value));
-  if (value > 0) return `+${body}`;
-  if (value < 0) return `-${body}`;
-  return body;
-}
-
 function scenarioFor(map: Record<string, number>, id: string) {
   const value = map[id];
-  return Number.isFinite(value) ? value : 0;
+  return Number.isFinite(value) ? value : DEFAULT_SCENARIO_PERCENT;
 }
 
-function zeroMap(holdings: BasketHolding[]) {
+function flatScenario(holdings: BasketHolding[]) {
   const next: Record<string, number> = {};
-  for (const item of holdings) next[item.preStockId] = 0;
+  for (const item of holdings) next[item.preStockId] = DEFAULT_SCENARIO_PERCENT;
   return next;
+}
+
+function toneFor(value: number) {
+  return value > 0 ? "text-up" : value < 0 ? "text-down" : undefined;
 }
 
 export function StrategySimulator({
   holdings,
   amount,
   onAmount,
-  onScenario,
-  basketName,
+  title,
+  context,
 }: {
   holdings: BasketHolding[];
   amount: number;
-  scenario?: number;
   onAmount: (value: number) => void;
-  onScenario?: (value: number) => void;
-  basketName?: string;
+  /** What is being simulated, e.g. the basket name. Always shown when set. */
+  title?: string;
+  /** One-line context under the title, e.g. "Basket · 4 PreStocks". */
+  context?: string;
 }) {
   const ids = holdings.map((item) => item.preStockId).join("|");
-  const [byId, setById] = useState<Record<string, number>>(() => zeroMap(holdings));
+  const [byId, setById] = useState<Record<string, number>>(() => flatScenario(holdings));
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [bookKey, setBookKey] = useState(ids);
 
-  useEffect(() => {
-    setById(zeroMap(holdings));
+  // A different basket or portfolio always opens flat at 0%: never inherit
+  // moves from the previous book. (Reset during render, not in an effect.)
+  if (bookKey !== ids) {
+    setBookKey(ids);
+    setById(flatScenario(holdings));
     setDrafts({});
-    // Always open a book at 0%. Do not inherit a parent scenario or a previous basket.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ids]);
+  }
 
-  const stats = calculateAllocationStats(holdings);
   const result = useMemo(
     () =>
       calculateHoldingsScenario(
@@ -75,7 +74,6 @@ export function StrategySimulator({
     for (const item of holdings) next[item.preStockId] = value;
     setById(next);
     setDrafts({});
-    onScenario?.(value);
   }
 
   function setOne(id: string, raw: string) {
@@ -89,20 +87,18 @@ export function StrategySimulator({
   const uniform =
     holdings.length > 0 &&
     holdings.every((item) => scenarioFor(byId, item.preStockId) === firstChange);
-  const presetMatch = SCENARIO_PRESETS.includes(
-    firstChange as (typeof SCENARIO_PRESETS)[number],
-  );
 
   if (holdings.length === 0) {
     return (
       <section
         id="simulator"
+        aria-labelledby="simulator-heading"
         className="scroll-mt-[calc(3.75rem+env(safe-area-inset-top,0px))] rounded-2xl border border-dashed border-border bg-card/40 px-6 py-12 text-center"
       >
-        <h2 className="font-display text-2xl">Strategy Simulator</h2>
-        <p className="mt-2 type-body">
-          Select a basket or portfolio to begin a simulation
-        </p>
+        <h2 id="simulator-heading" className="font-display text-2xl">
+          Strategy Simulator
+        </h2>
+        <p className="mt-2 type-body">Select a basket or portfolio to begin a simulation</p>
       </section>
     );
   }
@@ -110,33 +106,42 @@ export function StrategySimulator({
   return (
     <section
       id="simulator"
+      aria-labelledby="simulator-heading"
       className="scroll-mt-[calc(3.75rem+env(safe-area-inset-top,0px))] rounded-2xl border border-border bg-card p-5 sm:p-6"
     >
-      {basketName ? (
-        <div className="mb-4">
-          <p className="font-display text-2xl sm:text-3xl">{basketName}</p>
-          <p className="mt-1 type-meta">Simulating this basket</p>
-        </div>
-      ) : null}
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="font-display text-2xl">Strategy Simulator</h2>
+        <h2 id="simulator-heading" className="font-display text-2xl">
+          Strategy Simulator
+        </h2>
         <StatusBadge label="Hypothetical" />
       </div>
-      <p className="mt-2 max-w-xl type-body">
-        Test hypothetical outcomes for a PreStock basket or portfolio without
-        executing a trade.
+      {title ? (
+        <div className="mt-3">
+          <p className="type-kicker">Simulating</p>
+          <p className="mt-1 font-display text-xl sm:text-2xl">{title}</p>
+          {context ? <p className="mt-1 type-meta">{context}</p> : null}
+        </div>
+      ) : null}
+      <p className="mt-3 max-w-xl type-body">
+        Hypothetical outcomes only. Set a % move per position; nothing is traded, priced, or
+        forecast.
       </p>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
-          <Label htmlFor="sim-amount">Starting capital</Label>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <Label htmlFor="sim-amount">Starting value</Label>
+          <div
+            className="mt-2 flex flex-wrap gap-2"
+            role="group"
+            aria-label="Starting value presets"
+          >
             {AMOUNT_PRESETS.map((value) => (
               <Button
                 key={value}
                 type="button"
                 size="sm"
                 variant={amount === value ? "default" : "outline"}
+                aria-pressed={amount === value}
                 onClick={() => onAmount(value)}
               >
                 {formatPrice(value).replace(/\.00$/, "")}
@@ -144,7 +149,10 @@ export function StrategySimulator({
             ))}
           </div>
           <div className="relative mt-3">
-            <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 type-body">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 type-body"
+            >
               $
             </span>
             <Input
@@ -153,121 +161,144 @@ export function StrategySimulator({
               min={0}
               step={100}
               value={amount}
-              onChange={(event) =>
-                onAmount(Math.max(0, Number(event.target.value) || 0))
-              }
+              onChange={(event) => onAmount(Math.max(0, Number(event.target.value) || 0))}
               inputMode="decimal"
               className="pl-7 tabular-nums"
             />
           </div>
 
-          <p className="mt-5 type-kicker">Apply to all positions</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {SCENARIO_PRESETS.map((value) => (
-              <Button
-                key={value}
-                type="button"
-                size="sm"
-                variant={uniform && presetMatch && firstChange === value ? "default" : "outline"}
-                onClick={() => applyAll(value)}
-              >
-                {value > 0 ? `+${value}%` : `${value}%`}
-              </Button>
-            ))}
+          <p className="mt-5 type-kicker" id="sim-apply-all">
+            Apply one move to all positions
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2" role="group" aria-labelledby="sim-apply-all">
+            {SCENARIO_PRESETS.map((value) => {
+              const active = uniform && firstChange === value;
+              return (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={active ? "default" : "outline"}
+                  aria-pressed={active}
+                  onClick={() => applyAll(value)}
+                >
+                  {value > 0 ? `+${value}%` : `${value}%`}
+                </Button>
+              );
+            })}
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-border bg-secondary/40 px-4 py-4">
-              <p className="type-kicker">Hypothetical value</p>
-              <p
-                className={cn(
-                  "mt-1 font-display text-2xl tabular-nums sm:text-3xl",
-                  result.pnl > 0 && "text-up",
-                  result.pnl < 0 && "text-down",
-                )}
-              >
-                {formatPrice(result.scenarioValue)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border bg-secondary/40 px-4 py-4">
-              <p className="type-kicker">Hypothetical P&L</p>
-              <p
-                className={cn(
-                  "mt-1 font-display text-2xl tabular-nums sm:text-3xl",
-                  result.pnl > 0 && "text-up",
-                  result.pnl < 0 && "text-down",
-                )}
-              >
-                {formatSignedMoney(result.pnl)}
-              </p>
-              <p className="mt-1 type-meta">
-                Hypothetical return {formatPercent(result.returnPercent)}
-              </p>
-            </div>
-          </div>
+          <dl className="mt-6 grid grid-cols-2 gap-3" aria-live="polite">
+            <SummaryStat label="Starting value" value={formatPrice(result.startingValue)} />
+            <SummaryStat
+              label="Hypothetical value"
+              value={formatPrice(result.finalValue)}
+              tone={toneFor(result.pnl)}
+            />
+            <SummaryStat
+              label="Hypothetical P&L"
+              value={formatSignedUsd(result.pnl)}
+              tone={toneFor(result.pnl)}
+            />
+            <SummaryStat
+              label="Hypothetical return"
+              value={formatPercent(result.returnPercent)}
+              tone={toneFor(result.pnl)}
+            />
+          </dl>
           <p className="mt-3 type-meta">
-            Starting {formatPrice(amount)} · {stats.count} position
-            {stats.count === 1 ? "" : "s"} · not a forecast
+            {holdings.length} position{holdings.length === 1 ? "" : "s"} · hypothetical, not a
+            forecast
           </p>
         </div>
 
         <div>
           <div className="flex flex-wrap items-end justify-between gap-2">
             <h3 className="type-card">Positions</h3>
-            <p className="type-meta">Hypothetical % change</p>
+            <p className="type-meta">Hypothetical move per position</p>
           </div>
-          <div className="mt-3 space-y-3">
+          <ul className="mt-3 space-y-3">
             {holdings.map((item, index) => {
-              const impact = result.rows[index];
-              if (!impact) return null;
+              const outcome = result.rows[index];
+              if (!outcome) return null;
               const id = item.preStockId;
               const change = scenarioFor(byId, id);
+              const label = item.stock?.name ?? item.preStockId;
               return (
-                <div key={id} className="rounded-xl border border-border px-4 py-4">
+                <li key={id} className="rounded-xl border border-border px-4 py-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <p className="truncate type-card">
-                        {item.stock?.name ?? item.preStockId}
-                      </p>
+                      <p className="truncate type-card">{label}</p>
                       <p className="mt-1 type-meta">
-                        {item.allocation}% allocation · {formatPrice(impact.sleeve)}{" "}
-                        starting value
+                        {item.stock?.symbol ?? "Not in live catalog"}
                       </p>
                     </div>
-                    <div className="relative w-full sm:w-32">
-                      <Label htmlFor={`sim-pos-${id}`} className="sr-only">
-                        Hypothetical change for {item.stock?.symbol ?? item.preStockId}
+                    <div className="w-full sm:w-36 sm:shrink-0">
+                      <Label htmlFor={`sim-pos-${id}`} className="whitespace-nowrap type-meta">
+                        Hypothetical move
                       </Label>
-                      <Input
-                        id={`sim-pos-${id}`}
-                        value={drafts[id] ?? (change === 0 ? "0" : String(change))}
-                        onChange={(event) => setOne(id, event.target.value)}
-                        placeholder="0"
-                        inputMode="decimal"
-                        className="pr-8 tabular-nums"
-                      />
-                      <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 type-meta">
-                        %
-                      </span>
+                      <div className="relative mt-1">
+                        <Input
+                          id={`sim-pos-${id}`}
+                          value={drafts[id] ?? String(change)}
+                          onChange={(event) => setOne(id, event.target.value)}
+                          placeholder="0"
+                          inputMode="decimal"
+                          aria-describedby={`sim-pos-${id}-result`}
+                          className="pr-8 tabular-nums"
+                        />
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 type-meta"
+                        >
+                          %
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <p
-                    className={cn(
-                      "mt-2 type-meta",
-                      impact.contribution > 0 && "text-up",
-                      impact.contribution < 0 && "text-down",
-                    )}
+                  <dl
+                    id={`sim-pos-${id}-result`}
+                    className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4"
                   >
-                    {formatPercent(change)} · {formatPrice(impact.sleeve)} →{" "}
-                    {formatPrice(impact.scenarioValue)} ·{" "}
-                    {formatSignedMoney(impact.contribution)}
-                  </p>
-                </div>
+                    <PositionStat label="Allocation" value={`${item.allocation}%`} />
+                    <PositionStat
+                      label="Starting value"
+                      value={formatPrice(outcome.startingValue)}
+                    />
+                    <PositionStat
+                      label="Resulting value"
+                      value={formatPrice(outcome.resultingValue)}
+                    />
+                    <PositionStat
+                      label="P&L"
+                      value={formatSignedUsd(outcome.pnl)}
+                      tone={toneFor(outcome.pnl)}
+                    />
+                  </dl>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </div>
       </div>
     </section>
+  );
+}
+
+function SummaryStat({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-secondary/40 px-4 py-4">
+      <dt className="type-kicker">{label}</dt>
+      <dd className={cn("mt-1 font-display text-xl tabular-nums sm:text-2xl", tone)}>{value}</dd>
+    </div>
+  );
+}
+
+function PositionStat({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="type-meta">{label}</dt>
+      <dd className={cn("text-sm tabular-nums", tone)}>{value}</dd>
+    </div>
   );
 }

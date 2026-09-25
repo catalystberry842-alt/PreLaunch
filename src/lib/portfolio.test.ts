@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildPortfolioSnapshot, matchPreStockHoldings } from "./portfolio.ts";
+import { buildPortfolioSnapshot, matchPreStockHoldings, summaryNotes } from "./portfolio.ts";
 import { isSolanaAddress } from "./solana-address.ts";
 import type { PreStock } from "./types.ts";
 
@@ -146,6 +146,127 @@ describe("buildPortfolioSnapshot", () => {
     );
     assert.equal(snapshot.totalValue, 1242);
     assert.equal(snapshot.positions[0].tokenPrice, 100);
+    assert.equal(snapshot.positions[0].allocation, 100);
+    assert.equal(snapshot.unpricedCount, 0);
+  });
+
+  it("marks a holding without a usable catalog price as unavailable instead of $0", () => {
+    const unpricedMint = "PreUNPRiCEDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx3";
+    const stocks = [
+      ...catalog,
+      stock({ symbol: "KALSHI", contractAddress: unpricedMint, tokenPrice: 0 }),
+    ];
+    const snapshot = buildPortfolioSnapshot(
+      "11111111111111111111111111111111",
+      [
+        { mint: openaiMint, quantity: 2 },
+        { mint: unpricedMint, quantity: 5 },
+      ],
+      stocks,
+      undefined,
+      {
+        status: "ok",
+        transactions: [
+          {
+            walletAddress: "11111111111111111111111111111111",
+            signature: "buy-openai",
+            timestamp: "2026-01-01T00:00:00.000Z",
+            mint: openaiMint,
+            symbol: "OPENAI",
+            name: "OpenAI",
+            quantity: 2,
+            direction: "in",
+            type: "buy",
+            typeLabel: "Buy / Acquisition",
+            unitPriceUsd: 80,
+            valueUsd: 160,
+            costBasisEligible: true,
+          },
+          {
+            walletAddress: "11111111111111111111111111111111",
+            signature: "buy-kalshi",
+            timestamp: "2026-01-02T00:00:00.000Z",
+            mint: unpricedMint,
+            symbol: "KALSHI",
+            name: "KALSHI",
+            quantity: 5,
+            direction: "in",
+            type: "buy",
+            typeLabel: "Buy / Acquisition",
+            unitPriceUsd: 10,
+            valueUsd: 50,
+            costBasisEligible: true,
+          },
+        ],
+      },
+    );
+    const kalshi = snapshot.positions.find((item) => item.symbol === "KALSHI");
+    assert.equal(kalshi?.tokenPrice, null);
+    assert.equal(kalshi?.value, null);
+    assert.equal(kalshi?.allocation, null);
+    // Cost basis is still known from history; unrealized P&L is not.
+    assert.equal(kalshi?.costBasis, 50);
+    assert.equal(kalshi?.unrealizedPnl, null);
+    assert.equal(snapshot.unpricedCount, 1);
+    assert.equal(snapshot.totalValue, 200);
+    assert.equal(snapshot.positions[0].allocation, 100);
+    assert.equal(snapshot.totalCostBasis, 210);
+    assert.equal(snapshot.unrealizedPnl, null);
+    assert.equal(summaryNotes(snapshot).unrealized, "Some holdings have no current price");
+  });
+});
+
+describe("summaryNotes", () => {
+  const wallet = "11111111111111111111111111111111";
+
+  it("explains unavailable history instead of showing numbers", () => {
+    const snapshot = buildPortfolioSnapshot(wallet, [{ mint: openaiMint, quantity: 1 }], catalog, undefined, {
+      status: "unavailable",
+      message: "Transaction history is unavailable.",
+    });
+    assert.equal(snapshot.totalCostBasis, null);
+    assert.equal(snapshot.realizedPnl, null);
+    const notes = summaryNotes(snapshot);
+    assert.equal(notes.history, "unavailable");
+    assert.equal(notes.costBasis, "Transaction history unavailable");
+    assert.equal(notes.realized, "Needs complete transaction history");
+  });
+
+  it("reports partial cost-basis coverage", () => {
+    const snapshot = buildPortfolioSnapshot(
+      wallet,
+      [
+        { mint: openaiMint, quantity: 1 },
+        { mint: spaceMint, quantity: 1 },
+      ],
+      catalog,
+      undefined,
+      {
+        status: "ok",
+        transactions: [
+          {
+            walletAddress: wallet,
+            signature: "buy",
+            timestamp: "2026-01-01T00:00:00.000Z",
+            mint: openaiMint,
+            symbol: "OPENAI",
+            name: "OpenAI",
+            quantity: 1,
+            direction: "in",
+            type: "buy",
+            typeLabel: "Buy / Acquisition",
+            unitPriceUsd: 90,
+            valueUsd: 90,
+            costBasisEligible: true,
+          },
+        ],
+      },
+    );
+    assert.equal(snapshot.totalCostBasis, null);
+    const notes = summaryNotes(snapshot);
+    assert.equal(notes.costBasis, "Verified for 1 of 2 holdings");
+    assert.equal(notes.realized, "No sales in loaded history");
+    assert.equal(notes.history, "loaded");
   });
 });
 

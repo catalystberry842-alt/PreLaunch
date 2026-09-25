@@ -18,6 +18,7 @@ import { portfolioHoldingsFromSnapshot } from "@/lib/compare";
 import { getPortfolioFn } from "@/lib/portfolio.functions";
 import { cachePortfolioSnapshot, readCachedPortfolio } from "@/lib/portfolio-cache";
 import { resolveHoldings } from "@/lib/prestocks";
+import { formatAddress } from "@/lib/format";
 import { pageHead } from "@/lib/seo";
 import { isSolanaAddress } from "@/lib/solana-address";
 import type { Basket, BasketHolding } from "@/lib/types";
@@ -289,10 +290,28 @@ function SimulatorPage() {
             holdings={holdings}
             amount={amount}
             onAmount={setAmount}
-            basketName={source === "basket" ? basket?.name : undefined}
+            title={
+              source === "basket"
+                ? basket?.name
+                : `Portfolio ${formatAddress(wallet)}`
+            }
+            context={
+              source === "basket"
+                ? `Basket · ${holdings.length} PreStock${holdings.length === 1 ? "" : "s"}`
+                : `Current PreStocks weights · ${holdings.length} position${holdings.length === 1 ? "" : "s"}`
+            }
           />
         ) : null}
       </div>
+
+      {source === "portfolio" && snapshot && snapshot.unpricedCount > 0 ? (
+        <p className="mt-4 type-meta">
+          {snapshot.unpricedCount} holding
+          {snapshot.unpricedCount === 1 ? " has" : "s have"} no current catalog
+          price and {snapshot.unpricedCount === 1 ? "is" : "are"} excluded from
+          these weights.
+        </p>
+      ) : null}
 
       <p className="mt-8 type-meta">
         Hypothetical simulation only. PreLaunch does not execute trades or

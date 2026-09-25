@@ -47,19 +47,21 @@ export function portfolioHoldingsFromSnapshot(
   stocks: PreStock[],
 ): BasketHolding[] {
   const total = snapshot.totalValue;
-  return snapshot.positions.map((position) => {
+  // Positions without a current price have no weight; they are excluded
+  // rather than simulated at a fabricated 0%.
+  const holdings: BasketHolding[] = [];
+  for (const position of snapshot.positions) {
+    const value = position.value;
+    if (value == null || !Number.isFinite(value) || value <= 0 || total <= 0) continue;
     const id = canonicalizePreStockId(position.symbol);
     const stock = findStock(stocks, id) ?? null;
-    const allocation =
-      total > 0 && Number.isFinite(position.value)
-        ? round1((position.value / total) * 100)
-        : 0;
-    return {
+    holdings.push({
       preStockId: stock?.id ?? id,
-      allocation,
+      allocation: round1((value / total) * 100),
       stock,
-    };
-  });
+    });
+  }
+  return holdings;
 }
 
 export function comparePortfolioToBasket(
@@ -83,7 +85,10 @@ export function comparePortfolioToBasket(
     portfolio.set(id, {
       ...existing,
       quantity: existing.quantity + position.quantity,
-      value: existing.value + position.value,
+      value:
+        existing.value == null && position.value == null
+          ? null
+          : (existing.value ?? 0) + (position.value ?? 0),
     });
   }
 
@@ -100,13 +105,16 @@ export function comparePortfolioToBasket(
   for (const id of ids) {
     const position = portfolio.get(id);
     const stock = findStock(stocks, id);
+    const positionValue = position?.value;
     const portfolioValue =
-      position && Number.isFinite(position.value) ? position.value : 0;
+      positionValue != null && Number.isFinite(positionValue) ? positionValue : 0;
     const portfolioPercent =
       totalValue > 0 ? round1((portfolioValue / totalValue) * 100) : 0;
     const basketPercent = round1(basketWeights.get(id) ?? 0);
     const inPortfolio = Boolean(position) && portfolioValue > 0;
     const inBasket = basketPercent > 0;
+    // Held but unpriced and not in the basket: nothing to compare honestly.
+    if (!inPortfolio && !inBasket) continue;
     const side: CompareSide =
       inPortfolio && inBasket
         ? "both"

@@ -68,7 +68,6 @@ function BasketPage() {
     baskets.getCatalog().find((item) => item.id === id),
   );
   const [amount, setAmount] = useState(10000);
-  const [scenario, setScenario] = useState(0);
 
   useEffect(() => {
     setHydrated(true);
@@ -132,7 +131,7 @@ function BasketPage() {
     null,
   );
   const structureBody = stats.isComplete
-    ? `${stats.count} PreStocks, fully allocated at 100%. Largest sleeve ${stats.largest}%, smallest ${stats.smallest}%, average ${stats.average}%.`
+    ? `${stats.count} PreStocks, fully allocated at 100%. Largest position ${stats.largest}%, smallest ${stats.smallest}%, average ${stats.average}%.`
     : `${stats.count} PreStocks. Allocation total: ${stats.total}%. ${stats.remaining > 0 ? `${stats.remaining}% remaining` : `${Math.abs(stats.remaining)}% over 100%`}.`;
 
   return (
@@ -142,8 +141,9 @@ function BasketPage() {
           <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
             <p className="type-card">Saved in this browser</p>
             <p className="mt-1 type-meta">
-              This basket is on PreLaunch on this device. It is not a token
-              launch or on-chain event.
+              This strategy idea is published on PreLaunch on this device. It
+              did not create a token, liquidity, an order, or a blockchain
+              transaction.
             </p>
           </div>
         </div>
@@ -288,7 +288,7 @@ function BasketPage() {
                       {item.stock
                         ? `${item.stock.symbol} · ${item.stock.category}`
                         : "Data unavailable"}{" "}
-                      · {item.allocation}% sleeve
+                      · {item.allocation}% allocation
                     </p>
                   </div>
                   {item.stock ? (
@@ -311,10 +311,9 @@ function BasketPage() {
         <StrategySimulator
           holdings={holdings}
           amount={amount}
-          scenario={scenario}
           onAmount={setAmount}
-          onScenario={setScenario}
-          basketName={basket.name}
+          title={basket.name}
+          context={`Basket · ${holdings.length} PreStock${holdings.length === 1 ? "" : "s"} · ${basket.category}`}
         />
 
         <section>
@@ -351,7 +350,7 @@ function BasketPage() {
 
         <p className="type-meta leading-relaxed">
           {largest
-            ? `${largest.stock?.name ?? largest.preStockId} is the largest sleeve at ${largest.allocation}%. `
+            ? `${largest.stock?.name ?? largest.preStockId} is the largest position at ${largest.allocation}%. `
             : null}
           PreStocks are economic exposure, not ownership. This page is not
           financial advice.

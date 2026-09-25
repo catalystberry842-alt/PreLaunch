@@ -92,51 +92,6 @@ export function allocationTotal(
   return round1(sum);
 }
 
-export function remainingAllocation(
-  value: BasketConstituent[] | Record<string, number>,
-) {
-  return round1(100 - allocationTotal(value));
-}
-
-export function allocationsComplete(
-  value: BasketConstituent[] | Record<string, number>,
-) {
-  return Math.abs(allocationTotal(value) - 100) < 0.05;
-}
-
-export function calculateTotalAllocation(
-  value: BasketConstituent[] | Record<string, number>,
-) {
-  return allocationTotal(value);
-}
-
-export function calculateRemainingAllocation(
-  value: BasketConstituent[] | Record<string, number>,
-) {
-  return remainingAllocation(value);
-}
-
-export function isValidAllocation(
-  value: BasketConstituent[] | Record<string, number>,
-  selectedIds?: string[],
-) {
-  if (Array.isArray(value)) {
-    if (value.some((item) => item.allocation < 0)) return false;
-    if (selectedIds) {
-      const ids = new Set(value.map((item) => item.preStockId));
-      if (selectedIds.some((id) => !ids.has(id))) return false;
-    }
-    return allocationsComplete(value);
-  }
-  if (Object.values(value).some((item) => item < 0)) return false;
-  if (selectedIds) {
-    if (selectedIds.some((id) => value[id] == null || value[id] < 0)) {
-      return false;
-    }
-  }
-  return allocationsComplete(value);
-}
-
 export function setAllocation(
   allocations: Record<string, number>,
   id: string,
@@ -162,14 +117,6 @@ export function equalAllocations(ids: string[]) {
     }
   });
   return result;
-}
-
-export function dollarsForAllocation(amount: number, allocation: number) {
-  return round2((amount * allocation) / 100);
-}
-
-export function applyScenario(amount: number, change: number) {
-  return round2(amount * (1 + change / 100));
 }
 
 export const ALLOCATION_COLORS = [

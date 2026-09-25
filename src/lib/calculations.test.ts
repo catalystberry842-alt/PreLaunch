@@ -3,10 +3,11 @@ import { describe, it } from "node:test";
 import {
   calculateAllocationStats,
   calculateBasketValue,
-  calculateConstituentImpact,
   calculateHoldingsScenario,
+  calculatePositionOutcome,
   calculateScenarioValue,
   clampScenario,
+  DEFAULT_SCENARIO_PERCENT,
   parseScenarioInput,
 } from "./calculations.ts";
 
@@ -73,37 +74,75 @@ describe("calculateScenarioValue", () => {
   });
 });
 
-describe("calculateConstituentImpact", () => {
+describe("calculatePositionOutcome", () => {
   it("matches the +20% contribution example", () => {
-    const openai = calculateConstituentImpact(1000, 30, 20);
-    assert.equal(openai.sleeve, 300);
-    assert.equal(openai.scenarioValue, 360);
-    assert.equal(openai.contribution, 60);
+    const openai = calculatePositionOutcome(1000, 30, 20);
+    assert.equal(openai.startingValue, 300);
+    assert.equal(openai.resultingValue, 360);
+    assert.equal(openai.pnl, 60);
 
-    const anthropic = calculateConstituentImpact(1000, 25, 20);
-    assert.equal(anthropic.contribution, 50);
+    const anthropic = calculatePositionOutcome(1000, 25, 20);
+    assert.equal(anthropic.pnl, 50);
   });
 
   it("uses normalized weights when the book is not 100%", () => {
-    const impact = calculateConstituentImpact(1000, 40, 10, 80);
-    assert.equal(impact.sleeve, 500);
-    assert.equal(impact.contribution, 50);
+    const outcome = calculatePositionOutcome(1000, 40, 10, 80);
+    assert.equal(outcome.startingValue, 500);
+    assert.equal(outcome.pnl, 50);
   });
 
-  it("matches the $10,000 mixed-sleeve hackathon case", () => {
+  it("never assigns starting value to a negative allocation", () => {
+    const outcome = calculatePositionOutcome(1000, -10, 50);
+    assert.equal(outcome.startingValue, 0);
+    assert.equal(outcome.pnl, 0);
+  });
+});
+
+describe("calculateHoldingsScenario", () => {
+  it("defaults to a flat 0% scenario", () => {
+    assert.equal(DEFAULT_SCENARIO_PERCENT, 0);
+    const result = calculateHoldingsScenario(10000, [
+      { allocation: 60, scenarioPercent: DEFAULT_SCENARIO_PERCENT },
+      { allocation: 40, scenarioPercent: DEFAULT_SCENARIO_PERCENT },
+    ]);
+    assert.equal(result.startingValue, 10000);
+    assert.equal(result.finalValue, 10000);
+    assert.equal(result.pnl, 0);
+    assert.equal(result.returnPercent, 0);
+  });
+
+  it("$10,000 at 30% +25%, 30% -10%, 20% +15%, 20% +40% ends at $11,550 (+$1,550, +15.5%)", () => {
     const result = calculateHoldingsScenario(10000, [
       { allocation: 30, scenarioPercent: 25 },
       { allocation: 30, scenarioPercent: -10 },
       { allocation: 20, scenarioPercent: 15 },
       { allocation: 20, scenarioPercent: 40 },
     ]);
-    assert.equal(result.rows[0].scenarioValue, 3750);
-    assert.equal(result.rows[1].scenarioValue, 2700);
-    assert.equal(result.rows[2].scenarioValue, 2300);
-    assert.equal(result.rows[3].scenarioValue, 2800);
-    assert.equal(result.scenarioValue, 11550);
+    assert.deepEqual(
+      result.rows.map((row) => row.startingValue),
+      [3000, 3000, 2000, 2000],
+    );
+    assert.deepEqual(
+      result.rows.map((row) => row.resultingValue),
+      [3750, 2700, 2300, 2800],
+    );
+    assert.deepEqual(
+      result.rows.map((row) => row.pnl),
+      [750, -300, 300, 800],
+    );
+    assert.equal(result.startingValue, 10000);
+    assert.equal(result.finalValue, 11550);
     assert.equal(result.pnl, 1550);
     assert.equal(result.returnPercent, 15.5);
+  });
+
+  it("returns zeros for an empty or zero-amount book", () => {
+    const empty = calculateHoldingsScenario(10000, []);
+    assert.equal(empty.finalValue, 0);
+    assert.equal(empty.returnPercent, 0);
+    const zero = calculateHoldingsScenario(0, [{ allocation: 100, scenarioPercent: 50 }]);
+    assert.equal(zero.finalValue, 0);
+    assert.equal(zero.returnPercent, 0);
   });
 });
 

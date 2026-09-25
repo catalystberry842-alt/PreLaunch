@@ -30,12 +30,10 @@ import {
   type PreStock,
 } from "@/lib/types";
 import {
-  calculateRemainingAllocation,
-  calculateTotalAllocation,
-  equalAllocations,
-  isValidAllocation,
-  setAllocation,
-} from "@/lib/format";
+  draftAllocationEntries,
+  validateAllocations,
+} from "@/lib/basket-validation";
+import { equalAllocations, round1, setAllocation } from "@/lib/format";
 import { rememberPublishedBasket } from "@/lib/community";
 import { canonicalizePreStockId } from "@/lib/prestock-meta";
 import { searchPreStocks } from "@/lib/prestocks";
@@ -124,8 +122,13 @@ function CreatePage() {
 
   const issues = baskets.validateDraft(draft);
   const ready = issues.length === 0;
-  const total = calculateTotalAllocation(draft.allocations);
-  const remaining = calculateRemainingAllocation(draft.allocations);
+  // Totals cover the selected PreStocks only, matching what gets published.
+  const allocationEntries = draftAllocationEntries(draft.selectedIds, draft.allocations);
+  const total = round1(
+    allocationEntries.reduce((sum, entry) => sum + (entry.allocation ?? 0), 0),
+  );
+  const remaining = round1(100 - total);
+  const allocationValid = validateAllocations(allocationEntries).length === 0;
 
   function patch<K extends keyof BasketDraft>(key: K, value: BasketDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -359,6 +362,11 @@ function CreatePage() {
 
           <section id="launch" className="rounded-2xl border border-border bg-card p-5">
             <h2 className="type-card">Publish</h2>
+            <p className="mt-1 type-meta">
+              Publishing shares this strategy idea inside PreLaunch (saved in
+              this browser). It does not create a token, liquidity, an order,
+              or a blockchain transaction.
+            </p>
             {issues.length > 0 ? (
               <ul
                 className={cn(
@@ -391,7 +399,7 @@ function CreatePage() {
             selected={selected}
             total={total}
             remaining={remaining}
-            valid={isValidAllocation(draft.allocations, draft.selectedIds)}
+            valid={allocationValid}
           />
         </aside>
       </div>
@@ -776,8 +784,9 @@ function LaunchConfirm({
         <StatusBadge label="This browser" />
       </div>
       <p className="mt-3 type-lede">
-        Review the book. Publishing saves it on PreLaunch in this browser —
-        not a token, pool, or transaction.
+        Review the book. Publishing saves this strategy idea on PreLaunch in
+        this browser. It does not create a token, liquidity, an order, or a
+        blockchain transaction.
       </p>
 
       <Card className="mt-8 p-6">
@@ -858,8 +867,9 @@ function LaunchSuccess({
         <StatusBadge label="This browser" />
       </div>
       <p className="mt-3 type-lede">
-        {basket.name} is published on PreLaunch in this browser. It is not a
-        token launch and nothing was deployed on-chain.
+        {basket.name} is published as a strategy idea on PreLaunch in this
+        browser. No token, liquidity, order, or blockchain transaction was
+        created.
       </p>
 
       <Card className="mt-8 p-6">

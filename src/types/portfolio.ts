@@ -28,27 +28,44 @@ export type PortfolioTransaction = {
   costBasisEligible: boolean;
 };
 
+/**
+ * One PreStock held by the wallet, matched to the catalog by mint.
+ * `null` always means "unavailable" — never an estimate.
+ */
 export type PortfolioPosition = {
   symbol: string;
   name: string;
   image: string;
   initials: string;
+  /** Mint address from the PreStocks catalog (the matching key). */
   contractAddress: string;
+  /** On-chain token quantity (UI amount, decimals applied). */
   quantity: number;
-  tokenPrice: number;
-  value: number;
-  allocation: number;
+  /** Current catalog `tokenPrice` in USD; null when the catalog has no usable price. */
+  tokenPrice: number | null;
+  /** quantity × tokenPrice; null when the price is unavailable. */
+  value: number | null;
+  /** Share of priced portfolio value, in percent; null when unpriced. */
+  allocation: number | null;
+  /** Remaining average-cost basis; null when history cannot support it. */
   costBasis: number | null;
   unrealizedPnl: number | null;
   unrealizedPnlPercent: number | null;
 };
 
+/**
+ * `ok`: history loaded without truncation. `partial`: older pages were not
+ * loaded. `unavailable`: history could not be read at all.
+ */
 export type PortfolioHistoryStatus = "ok" | "unavailable" | "partial";
 
 export type PortfolioSnapshot = {
   wallet: string;
   fetchedAt: string;
+  /** Sum of priced position values. Excludes positions in `unpricedCount`. */
   totalValue: number;
+  /** Positions held but without a usable catalog price (excluded from totals). */
+  unpricedCount: number;
   totalCostBasis: number | null;
   unrealizedPnl: number | null;
   realizedPnl: number | null;
