@@ -90,6 +90,8 @@ export function buildPortfolioSnapshot(
     status?: PortfolioHistoryStatus;
     message?: string | null;
     truncated?: boolean;
+    /** Mints whose token-account history is incomplete: no cost basis for them. */
+    truncatedMints?: string[];
   },
 ): PortfolioSnapshot {
   const positions = matchPreStockHoldings(tokens, stocks);
@@ -98,10 +100,14 @@ export function buildPortfolioSnapshot(
   const transactions = history?.transactions ?? [];
   const historyStatus = history?.status ?? "ok";
   const { byMint, realizedPnl } = applyAverageCost(transactions);
+  const incomplete = new Set(
+    (history?.truncatedMints ?? []).map((mint) => normalizeContractAddress(mint)),
+  );
 
   const withCost = positions.map((item) => {
     const mint = normalizeContractAddress(item.contractAddress);
-    const cost = positionCostFromState(byMint.get(mint), item.quantity, item.value ?? 0);
+    const state = incomplete.has(mint) ? undefined : byMint.get(mint);
+    const cost = positionCostFromState(state, item.quantity, item.value ?? 0);
     // Without a current price there is no unrealized P&L — only cost basis.
     const priced = item.value != null;
     return {

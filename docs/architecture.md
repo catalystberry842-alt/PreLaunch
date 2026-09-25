@@ -38,12 +38,14 @@ If the catalog request fails, the loader returns `{ stocks: [], stocksError }` a
     3. fetchWalletFungibles(wallet, { mints })       → HELIUS_* errors / public RPC errors
          Helius DAS getAssetsByOwner → searchAssets  (if HELIUS_API_KEY)
          else / on failure: public RPC getTokenAccountsByOwner (Token-2022), filtered to catalog mints
-    4. fetchWalletHistory(wallet)                    → failure only downgrades historyStatus
-         Helius Enhanced Transactions (≤ 6 × 100)    (if HELIUS_API_KEY)
-         else / on failure: getSignaturesForAddress(40) + getTransaction → fromParsedRpcTransaction()
-       parsePreStockTransactions(raw, wallet, catalog)
+    4. fetchWalletHistory(wallet, { mints })         → failure only downgrades historyStatus
+         getTokenAccountsByOwner (Token-2022) + derived ATA per catalog mint → preStockHistoryAccounts()
+         per account: getSignaturesForAddress (≤ 1,000) → selectSignatures() (≤ 1,500 per wallet)
+         Helius Enhanced Transactions POST /v0/transactions (batches of 100)   (if HELIUS_API_KEY)
+         else / on failure: per account getSignaturesForAddress(100) + getTransaction (≤ 80) → fromParsedRpcTransaction()
+       parsePreStockTransactions(raw, wallet, catalog)   (balance deltas → fee-aware quantities)
     5. buildPortfolioSnapshot(wallet, tokens, catalog, fetchedAt, history)
-         matchPreStockHoldings → applyAverageCost → positionCostFromState → totals
+         matchPreStockHoldings → applyAverageCost → positionCostFromState (skips truncatedMints) → totals
 ◀── PortfolioResponse { ok: true, snapshot } | { ok: false, error, code, message }
 ```
 
@@ -97,9 +99,9 @@ The client build (`.vercel/output/static`) contains no `HELIUS_API_KEY`, `helius
 | Step     | With `HELIUS_API_KEY`                                                                                                                                     | Without it / on Helius failure                                                                                                       |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Balances | DAS `getAssetsByOwner` (fungibles, paged, ≤ 5 × 1000), falling back to `searchAssets` (`tokenType: fungible`)                                             | `getTokenAccountsByOwner` for the Token-2022 program on public RPC, filtered to catalog mints                                        |
-| History  | Enhanced Transactions `GET /v0/addresses/{wallet}/transactions` (≤ 6 pages × 100, `token-accounts=balanceChanged`); on 404 retries the `api-mainnet` host | `getSignaturesForAddress` (last 40) + `getTransaction` (jsonParsed), converted to the enhanced shape by `fromParsedRpcTransaction()` |
+| History  | Per PreStock token account: `getSignaturesForAddress` (≤ 1,000), then Enhanced Transactions `POST /v0/transactions` in batches of 100 (≤ 1,500 per wallet, 429 back-off) | Per token account: `getSignaturesForAddress` (≤ 100) + `getTransaction` (jsonParsed, ≤ 80 total), converted by `fromParsedRpcTransaction()` |
 
-Public RPC (`src/lib/solana-rpc.server.ts`) rotates between `api.mainnet-beta.solana.com` and `solana-rpc.publicnode.com`, uses a 12 s timeout, and retries rate-limited responses up to 3 times with linear back-off. Helius 401/403 surfaces as `HELIUS_AUTH_ERROR`; `api-key=` fragments in upstream error text are redacted. History is marked **partial** when the page/signature limit is hit.
+Public RPC (`src/lib/solana-rpc.server.ts`) rotates between `api.mainnet-beta.solana.com` and `solana-rpc.publicnode.com`, uses a 12 s timeout, and retries rate-limited responses up to 3 times with linear back-off. Helius 401/403 surfaces as `HELIUS_AUTH_ERROR`; `api-key=` fragments in upstream error text are redacted. History is marked **partial** per mint when a limit is hit; that mint gets no cost basis. See the README section "PreStock token-account history".
 
 ## Asset matching and cost basis
 
@@ -107,9 +109,11 @@ Wallet tokens match PreStocks **only by exact mint / `contract_address`** (trimm
 
 Cost basis uses **average cost** per mint, processed chronologically (`src/lib/cost-basis.ts`). Classification (`src/lib/helius-history.ts`):
 
-- **Buy** — a swap where exactly one PreStock comes in and USDC/USDT (the only assets valued, at $1) goes out. Cost = stablecoins paid.
-- **Sell** — exactly one PreStock goes out and USDC/USDT comes in. Proceeds = stablecoins received.
-- **Transfer in / out** — everything else, including swaps against non-stable assets and multi-PreStock swaps.
+Quantities come from balance deltas (Helius `accountData[].tokenBalanceChanges`, or pre/post token balances), because PreStock mints charge a Token-2022 transfer fee and transfer amounts overstate what arrives.
+
+- **Buy** — for this wallet, exactly one PreStock nets in, USDC/USDT (the only assets valued, at $1) nets out, all other token legs net to zero, and ≤ 0.02 SOL is spent. Cost = stablecoins paid. The Helius type label is not required.
+- **Sell** — the mirror image. Proceeds = stablecoins received.
+- **Transfer in / out** — everything else, including trades paid in SOL or other tokens and multi-PreStock swaps.
 
 Rules:
 

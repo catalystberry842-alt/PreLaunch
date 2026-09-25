@@ -107,17 +107,20 @@ export async function loadPortfolio(
   let historyStatus: PortfolioHistoryStatus = "ok";
   let historyMessage: string | null = null;
   let truncated = false;
+  let truncatedMints: string[] = [];
 
   try {
     const history = await helius.fetchWalletHistory(wallet, {
       fresh: options?.fresh === true,
+      mints,
     });
     truncated = history.truncated;
+    truncatedMints = history.truncatedMints;
     transactions = parsePreStockTransactions(history.raw, wallet, catalog);
     if (truncated) {
       historyStatus = "partial";
       historyMessage =
-        "Older transactions were not loaded. Cost basis may be incomplete.";
+        "Older transactions for some PreStocks were not loaded. Their cost basis is shown as unavailable.";
     }
   } catch (reason) {
     historyStatus = "unavailable";
@@ -138,6 +141,7 @@ export async function loadPortfolio(
     status: historyStatus,
     message: historyMessage,
     truncated,
+    truncatedMints,
   });
 
   return { ok: true, snapshot };

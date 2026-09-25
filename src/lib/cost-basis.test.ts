@@ -441,3 +441,113 @@ describe("fromParsedRpcTransaction", () => {
     assert.equal(parsed[0].typeLabel, "Buy / Acquisition");
   });
 });
+
+describe("parsePreStockTransactions — balance deltas and routes", () => {
+  const pool = "Pool11111111111111111111111111111111111111";
+  const wsol = "So11111111111111111111111111111111111111112";
+
+  it("uses balance deltas so the Token-2022 transfer fee is not counted as received", () => {
+    const parsed = parsePreStockTransactions(
+      [
+        {
+          signature: "FeeSig",
+          timestamp: 1_700_000_000,
+          type: "SWAP",
+          tokenTransfers: [
+            { fromUserAccount: wallet, toUserAccount: pool, mint: usdc, tokenAmount: 100 },
+            { fromUserAccount: pool, toUserAccount: wallet, mint: openaiMint, tokenAmount: 1 },
+          ],
+          accountData: [
+            {
+              account: wallet,
+              nativeBalanceChange: -5000,
+              tokenBalanceChanges: [
+                {
+                  userAccount: wallet,
+                  mint: usdc,
+                  rawTokenAmount: { tokenAmount: "-100000000", decimals: 6 },
+                },
+                {
+                  userAccount: wallet,
+                  mint: openaiMint,
+                  // 1% fee withheld: 0.99 actually arrives.
+                  rawTokenAmount: { tokenAmount: "990000000", decimals: 9 },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      wallet,
+      [openaiStock],
+    );
+    assert.equal(parsed.length, 1);
+    assert.equal(parsed[0].type, "buy");
+    assert.equal(parsed[0].quantity, 0.99);
+    assert.equal(parsed[0].valueUsd, 100);
+  });
+
+  it("prices an aggregator route labelled TRANSFER when the wSOL hop nets to zero", () => {
+    const parsed = parsePreStockTransactions(
+      [
+        {
+          signature: "RouteSig",
+          timestamp: 1_700_000_100,
+          type: "TRANSFER",
+          tokenTransfers: [
+            { fromUserAccount: wallet, toUserAccount: pool, mint: usdc, tokenAmount: 100 },
+            { fromUserAccount: pool, toUserAccount: wallet, mint: wsol, tokenAmount: 0.5 },
+            { fromUserAccount: wallet, toUserAccount: pool, mint: wsol, tokenAmount: 0.5 },
+            { fromUserAccount: pool, toUserAccount: wallet, mint: openaiMint, tokenAmount: 0.8 },
+          ],
+        },
+      ],
+      wallet,
+      [openaiStock],
+    );
+    assert.equal(parsed[0].type, "buy");
+    assert.equal(parsed[0].valueUsd, 100);
+    assert.equal(parsed[0].unitPriceUsd, 125);
+  });
+
+  it("does not price a trade that also spends wrapped SOL", () => {
+    const parsed = parsePreStockTransactions(
+      [
+        {
+          signature: "MixedSig",
+          timestamp: 1_700_000_200,
+          type: "SWAP",
+          tokenTransfers: [
+            { fromUserAccount: wallet, toUserAccount: pool, mint: usdc, tokenAmount: 50 },
+            { fromUserAccount: wallet, toUserAccount: pool, mint: wsol, tokenAmount: 0.3 },
+            { fromUserAccount: pool, toUserAccount: wallet, mint: openaiMint, tokenAmount: 1 },
+          ],
+        },
+      ],
+      wallet,
+      [openaiStock],
+    );
+    assert.equal(parsed[0].type, "transfer_in");
+    assert.equal(parsed[0].valueUsd, null);
+  });
+
+  it("does not price a trade that also spends native SOL beyond fees", () => {
+    const parsed = parsePreStockTransactions(
+      [
+        {
+          signature: "NativeSig",
+          timestamp: 1_700_000_300,
+          type: "SWAP",
+          tokenTransfers: [
+            { fromUserAccount: wallet, toUserAccount: pool, mint: usdc, tokenAmount: 50 },
+            { fromUserAccount: pool, toUserAccount: wallet, mint: openaiMint, tokenAmount: 1 },
+          ],
+          accountData: [{ account: wallet, nativeBalanceChange: -1_000_000_000 }],
+        },
+      ],
+      wallet,
+      [openaiStock],
+    );
+    assert.equal(parsed[0].type, "transfer_in");
+  });
+});

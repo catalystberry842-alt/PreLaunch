@@ -174,37 +174,95 @@ export async function fetchFungiblesByMints(
   return tokens;
 }
 
-const HISTORY_SIG_LIMIT = 40;
-const HISTORY_TX_CONCURRENCY = 4;
+export type OpenTokenAccount = { address: string; mint: string };
 
-export async function fetchParsedHistory(ownerAddress: string): Promise<{
-  raw: unknown[];
-  truncated: boolean;
-  pages: number;
-}> {
-  const { fromParsedRpcTransaction } = await import("./helius-history.ts");
-  const signatures = await rpc("getSignaturesForAddress", [
+/** Parse a jsonParsed getTokenAccountsByOwner row into address + mint (any balance). */
+export function parseOpenTokenAccount(item: unknown): OpenTokenAccount | null {
+  if (!item || typeof item !== "object") return null;
+  const address = (item as { pubkey?: unknown }).pubkey;
+  if (typeof address !== "string" || !address.trim()) return null;
+  const account = (item as { account?: unknown }).account;
+  const data = account && typeof account === "object" ? (account as { data?: unknown }).data : null;
+  const parsed = data && typeof data === "object" ? (data as { parsed?: unknown }).parsed : null;
+  const info = parsed && typeof parsed === "object" ? (parsed as { info?: unknown }).info : null;
+  const mint = info && typeof info === "object" ? (info as { mint?: unknown }).mint : null;
+  if (typeof mint !== "string" || !mint.trim()) return null;
+  return { address: address.trim(), mint: normalizeContractAddress(mint) };
+}
+
+export function openTokenAccountsFromResult(result: unknown): OpenTokenAccount[] {
+  if (!result || typeof result !== "object") return [];
+  const value = (result as { value?: unknown }).value;
+  if (!Array.isArray(value)) return [];
+  const accounts: OpenTokenAccount[] = [];
+  for (const item of value) {
+    const parsed = parseOpenTokenAccount(item);
+    if (parsed) accounts.push(parsed);
+  }
+  return accounts;
+}
+
+/** Every open Token-2022 account of the owner (including zero balances). */
+export async function fetchOpenTokenAccounts(ownerAddress: string): Promise<OpenTokenAccount[]> {
+  const result = await rpc("getTokenAccountsByOwner", [
     ownerAddress,
-    { limit: HISTORY_SIG_LIMIT, commitment: "confirmed" },
+    { programId: TOKEN_2022_PROGRAM },
+    { encoding: "jsonParsed", commitment: "confirmed" },
   ]);
-  if (!Array.isArray(signatures)) {
-    throw new SolanaRpcError(200, "Unable to read this wallet right now.");
+  return openTokenAccountsFromResult(result);
+}
+
+/** Public-RPC budget: signatures per token account and parsed transactions overall. */
+const HISTORY_SIG_LIMIT = 100;
+const HISTORY_TX_BUDGET = 80;
+const HISTORY_TX_CONCURRENCY = 2;
+
+/**
+ * Parsed history for a set of token accounts (not the whole wallet) via
+ * getSignaturesForAddress + getTransaction. Returns raw rows in the enhanced
+ * shape and the mints whose history could not be read completely.
+ */
+export async function fetchParsedHistoryForAccounts(
+  ownerAddress: string,
+  accounts: { address: string; mint: string }[],
+): Promise<{ raw: unknown[]; truncatedMints: string[]; pages: number }> {
+  const { fromParsedRpcTransaction } = await import("./helius-history.ts");
+  const truncated = new Set<string>();
+  const wanted: { signature: string; mint: string }[] = [];
+  const seen = new Set<string>();
+  let pages = 0;
+
+  for (const account of accounts) {
+    const signatures = await rpc("getSignaturesForAddress", [
+      account.address,
+      { limit: HISTORY_SIG_LIMIT, commitment: "confirmed" },
+    ]);
+    pages += 1;
+    if (!Array.isArray(signatures)) {
+      throw new SolanaRpcError(200, "Unable to read this wallet right now.");
+    }
+    if (signatures.length >= HISTORY_SIG_LIMIT) truncated.add(account.mint);
+    for (const item of signatures) {
+      if (!item || typeof item !== "object") continue;
+      const row = item as { signature?: unknown; err?: unknown };
+      if (row.err) continue;
+      if (typeof row.signature !== "string" || !row.signature.trim()) continue;
+      const signature = row.signature.trim();
+      if (seen.has(signature)) continue;
+      seen.add(signature);
+      wanted.push({ signature, mint: account.mint });
+    }
   }
 
-  const wanted: string[] = [];
-  for (const item of signatures) {
-    if (!item || typeof item !== "object") continue;
-    const row = item as { signature?: unknown; err?: unknown };
-    if (row.err) continue;
-    if (typeof row.signature !== "string" || !row.signature.trim()) continue;
-    wanted.push(row.signature.trim());
-  }
+  // Over budget: the oldest rows are dropped, so those mints are incomplete.
+  for (const item of wanted.slice(HISTORY_TX_BUDGET)) truncated.add(item.mint);
+  const selected = wanted.slice(0, HISTORY_TX_BUDGET);
 
   const parsed: unknown[] = [];
-  for (let i = 0; i < wanted.length; i += HISTORY_TX_CONCURRENCY) {
-    const slice = wanted.slice(i, i + HISTORY_TX_CONCURRENCY);
+  for (let i = 0; i < selected.length; i += HISTORY_TX_CONCURRENCY) {
+    const slice = selected.slice(i, i + HISTORY_TX_CONCURRENCY);
     const batch = await Promise.all(
-      slice.map(async (signature) => {
+      slice.map(async ({ signature, mint }) => {
         try {
           return await rpc("getTransaction", [
             signature,
@@ -215,6 +273,7 @@ export async function fetchParsedHistory(ownerAddress: string): Promise<{
             },
           ]);
         } catch {
+          truncated.add(mint);
           return null;
         }
       }),
@@ -225,6 +284,5 @@ export async function fetchParsedHistory(ownerAddress: string): Promise<{
     }
   }
 
-  const truncated = signatures.length >= HISTORY_SIG_LIMIT;
-  return { raw: parsed, truncated, pages: 1 };
+  return { raw: parsed, truncatedMints: [...truncated], pages };
 }
