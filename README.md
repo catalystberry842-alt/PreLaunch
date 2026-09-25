@@ -1,24 +1,31 @@
 # PreLaunch
 
-**A read-only portfolio and strategy layer for [PreStocks](https://prestocks.com)** — tokenized, pre-IPO economic exposure on Solana.
+**Curated PreStock baskets, with research, simulation and wallet tracking, for [PreStocks](https://prestocks.com)** (tokenized pre-IPO economic exposure on Solana). Strictly read-only.
 
 **Demo:** https://pre-launched.vercel.app
 
-**Try it:** open [/portfolio](https://pre-launched.vercel.app/portfolio) and click **Try a sample wallet** — a public Solana wallet that has bought Anduril and Neuralink PreStocks with USDC in small recurring buys since June 2026, with average-cost basis and unrealized P&L resolved from its on-chain history.
+**What you can do**
 
-| Home — live token price vs mark | Portfolio — sample wallet with cost basis |
+- **Discover** every PreStock from the official PreStocks API, with token price, mark price, how far the token trades above or below its mark, and implied valuation.
+- **Explore baskets**: allocation-based PreStock baskets with a weighted token-vs-mark figure for the whole basket.
+- **Build and publish** your own basket (saved as a strategy idea; nothing is created on-chain).
+- **Simulate** a basket with hypothetical per-position moves and see the result, P&L and return.
+- **Compare** any Solana wallet against a basket.
+- **Track** the PreStocks held by any wallet, with value, allocation and average-cost basis where on-chain history supports it.
+
+**Try it:** open a [basket](https://pre-launched.vercel.app/basket/ai-infrastructure), run it in the [simulator](https://pre-launched.vercel.app/simulator?basket=ai-infrastructure&source=basket), then use **Try a sample wallet** on [/compare](https://pre-launched.vercel.app/compare) or [/portfolio](https://pre-launched.vercel.app/portfolio) to see real holdings.
+
+| Basket, weighted token vs mark | Home, live token price vs mark |
 | --- | --- |
-| ![Home page with the live token price vs mark table](docs/screenshots/home.png) | ![Portfolio of the sample wallet with value, cost basis and unrealized P&L](docs/screenshots/portfolio.png) |
-| **Compare — sample wallet vs AI Infrastructure** | **Basket — weighted token vs mark** |
-| ![Compare page: sample wallet against the AI Infrastructure basket](docs/screenshots/compare.png) | ![AI Infrastructure basket page with the weighted token vs mark stat](docs/screenshots/basket.png) |
+| ![AI Infrastructure basket page with the weighted token vs mark stat](docs/screenshots/basket.png) | ![Home page with the live token price vs mark table](docs/screenshots/home.png) |
+| **Compare, a wallet vs AI Infrastructure** | **Portfolio, a wallet with cost basis** |
+| ![Compare page: a sample wallet against the AI Infrastructure basket](docs/screenshots/compare.png) | ![Portfolio of a sample wallet with value, cost basis and unrealized P&L](docs/screenshots/portfolio.png) |
 
 <p><img src="docs/screenshots/mobile-portfolio.png" alt="Portfolio on a 390px mobile screen" width="240" /></p>
 
-Silent demo (38 s, home → sample wallet portfolio → compare → simulator): [docs/screenshots/demo.mp4](docs/screenshots/demo.mp4)
+Silent demo (38 s, home, portfolio, compare, simulator): [docs/screenshots/demo.mp4](docs/screenshots/demo.mp4)
 
-Screenshots were captured from the live site on Sep 25, 2026; prices and P&L change with the market.
-
-PreLaunch lets you discover and research PreStocks, track the PreStocks held by any Solana wallet, see value / allocation / cost basis where on-chain history supports it, build allocation-based PreStock baskets, compare a wallet against a basket, and run explicitly hypothetical what-if scenarios.
+Screenshots were captured from the live site on Sep 25, 2026; prices and P&L change with the market, and the sample wallet has since been changed.
 
 > **Read-only by design.** PreLaunch never connects a wallet, never asks for a private key or seed phrase, never signs or sends a transaction, and has no trading, swap, order, or custody functionality. Publishing a basket publishes a _strategy idea inside PreLaunch_ — it does not create a token, liquidity, an order, or a blockchain transaction.
 
